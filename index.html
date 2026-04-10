@@ -4128,7 +4128,7 @@ function processStock(sym, info, p) {
 /* ───────────────────────────────────────────────
    ASYNC BATCH PROCESSING  (50 stocks/frame)
 ─────────────────────────────────────────────── */
-async function _coreRunProcessing() {
+async function runProcessing() {
   if (!uploadedParsed) { toast('Upload a CSV file first', 'err'); return; }
 
   const p = {
@@ -5552,6 +5552,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 style="padding:8px 18px;font-size:12px;">
           <i class="fas fa-magic"></i> Generate Portfolios
         </button>
+        <div id="peScheduleInfo" style="font-family:var(--mono);font-size:10px;color:var(--text3);padding:4px 8px;
+             background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);white-space:nowrap;">
+          <i class="fas fa-calendar" style="color:var(--amber);margin-right:4px;"></i>
+          <span id="peScheduleText">Mon · Wed · Fri</span>
+        </div>
         <button class="btn btn-ghost" onclick="clearPortfolios()"
                 style="padding:8px 14px;font-size:11px;">
           <i class="fas fa-trash-alt"></i> Clear All
@@ -5732,9 +5737,16 @@ function deduplicateSectors(stocks, max=2) {
   });
 }
 
-function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
+function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking, usedSymbols) {
+  usedSymbols = usedSymbols || new Set();
+
+  // Filter candidates — exclude already-used symbols globally
   let candidates = allSignals.filter(s =>
-    s.type==='buy' && s.score>=Math.min(minScore,65) && (s.barsAgo||99)<=3 && theme.filter(s)
+    s.type==='buy' &&
+    s.score>=Math.min(minScore,65) &&
+    (s.barsAgo||99)<=3 &&
+    !usedSymbols.has(s.symbol) &&
+    theme.filter(s)
   );
   if (theme.sort) candidates.sort(theme.sort);
   else candidates.sort((a,b)=>b.score-a.score);
@@ -5764,6 +5776,14 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
   if(candidates.length<3)return null;
 
   const totalWR = candidates.reduce((s,c)=>s+Math.max(wrVal(c),50),0);
+  const today=new Date();
+  const dissolve=new Date(today);
+  dissolve.setDate(dissolve.getDate()+7);
+
+  // Label which generation cycle this is (Mon/Wed/Fri)
+  const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][today.getDay()];
+  const cycleLabel = dayName==='Mon'?'MON SET':dayName==='Wed'?'WED SET':dayName==='Fri'?'FRI SET':'MANUAL';
+
   const stocks = candidates.map(c=>{
     const wr  = Math.max(wrVal(c),50);
     const wgt = wr/totalWR;
@@ -5775,13 +5795,9 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
       tp:c.takeProfit||+(c.price*1.02).toFixed(2),
       sl:c.stopLoss||+(c.price*0.96).toFixed(2),
       status:'open', dailyPnl:[null,null,null,null,null],
-      currentPrice:c.price, entryDate:new Date().toISOString().slice(0,10),
+      currentPrice:c.price, entryDate:today.toISOString().slice(0,10),
     };
   });
-
-  const today=new Date();
-  const dissolve=new Date(today);
-  dissolve.setDate(dissolve.getDate()+7);
 
   return {
     id:theme.id+'-'+today.toISOString().slice(0,10),
@@ -5789,28 +5805,84 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
     themeIconBg:theme.iconBg, themeIconCol:theme.iconCol, themeDesc:theme.desc,
     generatedDate:today.toISOString().slice(0,10),
     dissolveDate:dissolve.toISOString().slice(0,10),
+    cycleLabel,
     day:1, status:'active', stocks,
     portfolioPnl:[null,null,null,null,null],
     lastUpdated:today.toISOString().slice(0,10),
   };
 }
 
-function generatePortfolios() {
-  if (!allSignals.length) { toast('Run Signal Scanner first','err'); switchPage('p1'); return; }
-  checkDissolutions();
+/* ═══════════════════════════════════════════════════════
+   MON/WED/FRI SCHEDULE CHECK
+═══════════════════════════════════════════════════════ */
+function isGenerationDay() {
+  const day = new Date().getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+  return day === 1 || day === 3 || day === 5; // Mon, Wed, Fri
+}
+
+function getNextGenerationDay() {
+  const d = new Date();
+  const day = d.getDay();
+  const daysUntil = day===1||day===3||day===5 ? 0
+    : day===0 ? 1 : day===2 ? 1 : day===4 ? 1 : 3; // Sun→Mon, Tue→Wed, Thu→Fri, Sat→Mon
+  const next = new Date(d);
+  next.setDate(d.getDate() + daysUntil);
+  return next.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+}
+
+function checkAutoGenerate() {
+  if (!allSignals.length) return;
+  const today = new Date().toISOString().slice(0,10);
+  const alreadyGenToday = pePortfolios.some(p=>p.generatedDate===today&&p.status==='active');
+  if (alreadyGenToday) return; // already done today
+  if (!isGenerationDay()) return; // not Mon/Wed/Fri
+  // Auto-generate silently
   const minScore  = parseInt(document.getElementById('pe_minScore').value)||75;
   const capitalPF = parseInt(document.getElementById('pe_capital').value)||60000;
-  const sectorRank= rankSectors();
-  let built=0;
-  const today=new Date().toISOString().slice(0,10);
+  _doGenerate(minScore, capitalPF, true);
+}
+
+function generatePortfolios() {
+  if (!allSignals.length) { toast('Run Signal Scanner first','err'); switchPage('p1'); return; }
+  const minScore  = parseInt(document.getElementById('pe_minScore').value)||75;
+  const capitalPF = parseInt(document.getElementById('pe_capital').value)||60000;
+  checkDissolutions();
+  const built = _doGenerate(minScore, capitalPF, false);
+  renderPortfolioPage();
+  switchPage('p2');
+  if (built === 0) {
+    toast('Portfolios already generated today. Clear first to regenerate.','warn');
+  } else {
+    toast(`Generated ${built} new portfolios · ${pePortfolios.filter(p=>p.status==='active').length} total active`,'ok');
+  }
+}
+
+function _doGenerate(minScore, capitalPF, silent) {
+  checkDissolutions();
+  const sectorRank = rankSectors();
+  const today = new Date().toISOString().slice(0,10);
+
+  // ── GLOBAL used-symbols set — no stock repeats across portfolios ──
+  const usedSymbols = new Set();
+  // Pre-fill from already active portfolios generated TODAY
+  pePortfolios.filter(p=>p.generatedDate===today&&p.status==='active')
+    .forEach(p=>p.stocks.forEach(s=>usedSymbols.add(s.symbol)));
+
+  let built = 0;
   PE_THEMES.forEach(theme=>{
-    const exists=pePortfolios.find(p=>p.themeId===theme.id&&p.generatedDate===today&&p.status==='active');
-    if(exists)return;
-    const pf=buildPortfolio(theme,minScore,capitalPF,sectorRank);
-    if(pf){pePortfolios.push(pf);built++;}
+    const exists = pePortfolios.find(p=>p.themeId===theme.id&&p.generatedDate===today&&p.status==='active');
+    if (exists) return;
+    const pf = buildPortfolio(theme, minScore, capitalPF, sectorRank, usedSymbols);
+    if (pf) {
+      // Add this portfolio's stocks to used set
+      pf.stocks.forEach(s=>usedSymbols.add(s.symbol));
+      pePortfolios.push(pf);
+      built++;
+    }
   });
-  peSave(); updateTabBadges(); renderPortfolioPage(); switchPage('p2');
-  toast(`Generated ${built} new portfolios · ${pePortfolios.filter(p=>p.status==='active').length} total active`,'ok');
+  if (built > 0) { peSave(); updateTabBadges(); }
+  if (!silent && built > 0) renderPortfolioPage();
+  return built;
 }
 
 function updatePortfolioPrices() {
@@ -5890,6 +5962,24 @@ function renderPortfolioPage() {
   document.getElementById('peArchivedCount').textContent=peArchive.length;
   const gb=document.getElementById('peGenBtn');
   if(gb)gb.disabled=!allSignals.length;
+
+  // Schedule info
+  const schedEl = document.getElementById('peScheduleText');
+  if (schedEl) {
+    const today = new Date().toISOString().slice(0,10);
+    const genToday = pePortfolios.some(p=>p.generatedDate===today&&p.status==='active');
+    if (genToday) {
+      schedEl.textContent = '✓ Generated today';
+      schedEl.style.color = 'var(--bull)';
+    } else if (isGenerationDay()) {
+      schedEl.textContent = '📅 Today is a generation day!';
+      schedEl.style.color = 'var(--amber)';
+    } else {
+      schedEl.textContent = `Next: ${getNextGenerationDay()}`;
+      schedEl.style.color = 'var(--text3)';
+    }
+  }
+
   renderSectorStrip();
   const grid=document.getElementById('peGrid');
   const empty=document.getElementById('peEmpty');
@@ -5976,6 +6066,7 @@ function renderPfCard(pf) {
       <div class="pf-meta">
         <span class="pf-day-badge">Day ${pf.day}/5</span>
         <span class="pf-status-badge psb-active">● ACTIVE</span>
+        ${pf.cycleLabel?`<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(99,102,241,0.10);color:#4338ca;border:1px solid rgba(99,102,241,0.25)">${pf.cycleLabel}</span>`:''}
       </div>
     </div>
     <div class="pf-pnl-strip">
@@ -6111,19 +6202,29 @@ function updateTabBadges() {
   if(e2)e2.textContent=b;
 }
 
-// Safe wrapper: calls _coreRunProcessing (the real signal engine), then runs portfolio hooks
-async function runProcessing() {
-  await _coreRunProcessing();
-  const gb = document.getElementById('peGenBtn');
-  if (gb) gb.disabled = false;
-  updatePortfolioPrices();
-  updateTabBadges();
-}
-
 document.addEventListener('DOMContentLoaded', ()=>{
   peLoad();
   checkDissolutions();
   updateTabBadges();
+  // Hook into Generate Signals button to also trigger portfolio updates after run
+  const runBtn = document.getElementById('runBtn');
+  if (runBtn) {
+    runBtn.addEventListener('click', ()=>{
+      const observer = new MutationObserver(()=>{
+        if (!runBtn.disabled) {
+          observer.disconnect();
+          setTimeout(()=>{
+            const gb=document.getElementById('peGenBtn');
+            if(gb)gb.disabled=false;
+            updatePortfolioPrices();
+            checkAutoGenerate();
+            updateTabBadges();
+          }, 300);
+        }
+      });
+      observer.observe(runBtn, {attributes:true, attributeFilter:['disabled']});
+    });
+  }
 });
 </script>
 
