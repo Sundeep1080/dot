@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"> 
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4128,7 +4128,7 @@ function processStock(sym, info, p) {
 /* ───────────────────────────────────────────────
    ASYNC BATCH PROCESSING  (50 stocks/frame)
 ─────────────────────────────────────────────── */
-async function runProcessing() {
+async function _coreRunProcessing() {
   if (!uploadedParsed) { toast('Upload a CSV file first', 'err'); return; }
 
   const p = {
@@ -6111,12 +6111,11 @@ function updateTabBadges() {
   if(e2)e2.textContent=b;
 }
 
-// Hook into existing runProcessing completion to enable Gen button + auto-update prices
-const _origRunProcessing = runProcessing;
+// Safe wrapper: calls _coreRunProcessing (the real signal engine), then runs portfolio hooks
 async function runProcessing() {
-  await _origRunProcessing.apply(this, arguments);
-  const gb=document.getElementById('peGenBtn');
-  if(gb)gb.disabled=false;
+  await _coreRunProcessing();
+  const gb = document.getElementById('peGenBtn');
+  if (gb) gb.disabled = false;
   updatePortfolioPrices();
   updateTabBadges();
 }
