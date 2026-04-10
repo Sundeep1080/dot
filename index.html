@@ -5652,38 +5652,77 @@ function switchPage(id) {
 
 /* ═══════════════════════════════════════════════════════
    PORTFOLIO ENGINE CONSTANTS
+   Each theme has its own independent candidate pool.
+   No-repetition is enforced WITHIN each portfolio only
+   (max 2 per sector). Cross-portfolio overlap is allowed
+   because each theme selects on different criteria.
 ═══════════════════════════════════════════════════════ */
 const PE_THEMES = [
-  { id:'P01', name:'ALPHA BULL',      icon:'fas fa-crown',          iconBg:'rgba(217,119,6,0.15)',   iconCol:'#d97706',
-    desc:'Top 8 overall scores, buy signals only',
-    filter:(s)=>s.type==='buy'&&s.score>=80, sort:(a,b)=>b.score-a.score },
-  { id:'P02', name:'SECTOR LEADERS',  icon:'fas fa-building-columns',iconBg:'rgba(99,102,241,0.12)', iconCol:'#6366f1',
-    desc:'Top 2 stocks from each of top 4 sectors by breadth',
-    filter:(s)=>s.type==='buy'&&s.score>=70, sort:(a,b)=>b.score-a.score, sectorMode:true },
-  { id:'P03', name:'REJ SNIPER',      icon:'fas fa-crosshairs',      iconBg:'rgba(5,150,105,0.12)',  iconCol:'#059669',
-    desc:'B1-OS + B1-MOM only, REJ zone entries',
-    filter:(s)=>s.type==='buy'&&(s.signal==='B1-OS'||s.signal==='B1-MOM')&&s.bandZone==='rej_lo' },
-  { id:'P04', name:'BREAKOUT MOM',    icon:'fas fa-rocket',          iconBg:'rgba(234,88,12,0.12)',  iconCol:'#ea580c',
-    desc:'B2 + B1-MOM, VA zone — momentum continuation',
-    filter:(s)=>s.type==='buy'&&(s.signal==='B2'||s.signal==='B1-MOM')&&(s.bandZone==='va'||s.bandZone==='below_va'||s.bandZone==='above_va') },
-  { id:'P05', name:'HIGH WIN RATE',   icon:'fas fa-trophy',          iconBg:'rgba(245,158,11,0.12)', iconCol:'#f59e0b',
-    desc:'Top 8 by actual historical win rate',
-    filter:(s)=>s.type==='buy'&&wrVal(s)>=50, sort:(a,b)=>wrVal(b)-wrVal(a) },
-  { id:'P06', name:'MEAN REVERSION',  icon:'fas fa-arrows-rotate',   iconBg:'rgba(129,140,248,0.12)',iconCol:'#818cf8',
-    desc:'B1-OS only — deep oversold bounce',
-    filter:(s)=>s.type==='buy'&&s.signal==='B1-OS'&&(s.bandZone==='rej_lo'||s.bandZone==='below_va') },
-  { id:'P07', name:'WEEKLY ALIGNED',  icon:'fas fa-calendar-check',  iconBg:'rgba(5,150,105,0.10)', iconCol:'#059669',
-    desc:'Weekly bull + daily buy — trade with the trend',
-    filter:(s)=>s.type==='buy'&&s.weeklyAligned&&s.weeklyTrend==='bull' },
-  { id:'P08', name:'SMALLCAP ALPHA',  icon:'fas fa-seedling',        iconBg:'rgba(16,185,129,0.10)',iconCol:'#10b981',
-    desc:'NIFTY SMALLCAP stocks only',
-    filter:(s)=>s.type==='buy'&&(s.index||'').toUpperCase().includes('SMALL') },
-  { id:'P09', name:'DIVERSIFIED',     icon:'fas fa-globe',           iconBg:'rgba(217,119,6,0.10)', iconCol:'#d97706',
-    desc:'1 best stock from 8 different sectors',
-    filter:(s)=>s.type==='buy'&&s.score>=65, sort:(a,b)=>b.score-a.score, onePerSector:true },
-  { id:'P10', name:'MOMENTUM SURGE',  icon:'fas fa-bolt',            iconBg:'rgba(220,38,38,0.10)', iconCol:'#dc2626',
-    desc:'B1-MOM + B2 only, score 80+ — fastest movers',
-    filter:(s)=>s.type==='buy'&&(s.signal==='B1-MOM'||s.signal==='B2')&&s.score>=80 },
+  { id:'P01', name:'ALPHA BULL',
+    icon:'fas fa-crown', iconBg:'rgba(217,119,6,0.15)', iconCol:'#d97706',
+    desc:'Top 10 overall scores across all buy signals',
+    minScore:70, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy',
+    sort:(a,b)=>b.score-a.score },
+
+  { id:'P02', name:'SECTOR LEADERS',
+    icon:'fas fa-building-columns', iconBg:'rgba(99,102,241,0.12)', iconCol:'#6366f1',
+    desc:'Top 2 stocks from each of top 5 sectors by breadth',
+    minScore:60, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy',
+    sort:(a,b)=>b.score-a.score, sectorMode:true },
+
+  { id:'P03', name:'REJ SNIPER',
+    icon:'fas fa-crosshairs', iconBg:'rgba(5,150,105,0.12)', iconCol:'#059669',
+    desc:'B1-OS + B1-MOM at REJ↓ zone — max edge oversold entries',
+    minScore:55, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy' && (s.signal==='B1-OS'||s.signal==='B1-MOM') && s.bandZone==='rej_lo' },
+
+  { id:'P04', name:'BREAKOUT MOM',
+    icon:'fas fa-rocket', iconBg:'rgba(234,88,12,0.12)', iconCol:'#ea580c',
+    desc:'B2 + B1-MOM in VA/Below VA — momentum continuation plays',
+    minScore:60, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy' && (s.signal==='B2'||s.signal==='B1-MOM') &&
+                (s.bandZone==='va'||s.bandZone==='below_va'||s.bandZone==='above_va') },
+
+  { id:'P05', name:'HIGH WIN RATE',
+    icon:'fas fa-trophy', iconBg:'rgba(245,158,11,0.12)', iconCol:'#f59e0b',
+    desc:'Top stocks ranked by actual historical win rate',
+    minScore:55, maxBarsAgo:7,
+    filter:(s)=>s.type==='buy' && wrVal(s)>=45,
+    sort:(a,b)=>wrVal(b)-wrVal(a) },
+
+  { id:'P06', name:'MEAN REVERSION',
+    icon:'fas fa-arrows-rotate', iconBg:'rgba(129,140,248,0.12)', iconCol:'#818cf8',
+    desc:'B1-OS deep oversold bounce — REJ↓ and Below VA zones',
+    minScore:55, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy' && s.signal==='B1-OS' &&
+                (s.bandZone==='rej_lo'||s.bandZone==='below_va') },
+
+  { id:'P07', name:'WEEKLY ALIGNED',
+    icon:'fas fa-calendar-check', iconBg:'rgba(5,150,105,0.10)', iconCol:'#059669',
+    desc:'Weekly bull + daily buy signal — trade with the trend',
+    minScore:60, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy' && s.weeklyAligned && s.weeklyTrend==='bull' },
+
+  { id:'P08', name:'SMALLCAP ALPHA',
+    icon:'fas fa-seedling', iconBg:'rgba(16,185,129,0.10)', iconCol:'#10b981',
+    desc:'NIFTY SMALLCAP 250 stocks only — high beta opportunities',
+    minScore:55, maxBarsAgo:7,
+    filter:(s)=>s.type==='buy' && (s.index||'').toUpperCase().includes('SMALL') },
+
+  { id:'P09', name:'DIVERSIFIED INDIA',
+    icon:'fas fa-globe', iconBg:'rgba(217,119,6,0.10)', iconCol:'#d97706',
+    desc:'Best 1 stock from each of 8+ different sectors',
+    minScore:60, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy',
+    sort:(a,b)=>b.score-a.score, onePerSector:true },
+
+  { id:'P10', name:'MOMENTUM SURGE',
+    icon:'fas fa-bolt', iconBg:'rgba(220,38,38,0.10)', iconCol:'#dc2626',
+    desc:'B1-MOM + B2 only — fastest moving signals',
+    minScore:60, maxBarsAgo:5,
+    filter:(s)=>s.type==='buy' && (s.signal==='B1-MOM'||s.signal==='B2') },
 ];
 
 const PE_STORAGE_KEY = 'iravat_portfolios_v1';
@@ -5741,78 +5780,99 @@ function deduplicateSectors(stocks, max=2) {
   });
 }
 
-function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking, usedSymbols) {
-  usedSymbols = usedSymbols || new Set();
+function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
+  // Each theme uses its own minScore and maxBarsAgo — not the global one
+  const scoreFloor  = Math.max(theme.minScore || 55, minScore - 15);
+  const barsAgoMax  = theme.maxBarsAgo || 5;
 
-  // Filter candidates — exclude already-used symbols globally
+  // Build candidate pool independently per theme — no global exclusion
   let candidates = allSignals.filter(s =>
-    s.type==='buy' &&
-    s.score>=Math.min(minScore,65) &&
-    (s.barsAgo||99)<=3 &&
-    !usedSymbols.has(s.symbol) &&
+    s.type === 'buy' &&
+    s.score >= scoreFloor &&
+    (s.barsAgo || 99) <= barsAgoMax &&
     theme.filter(s)
   );
-  if (theme.sort) candidates.sort(theme.sort);
-  else candidates.sort((a,b)=>b.score-a.score);
 
+  if (!candidates.length) return null;
+
+  // Sort
+  if (theme.sort) candidates.sort(theme.sort);
+  else candidates.sort((a,b) => b.score - a.score);
+
+  // Sector mode — top 2 from each of top 5 sectors
   if (theme.sectorMode) {
-    const top4 = sectorRanking.slice(0,4).map(x=>x.sec);
-    const bySec={};
-    candidates.forEach(s=>{
-      const sec=s.sector||'N/A';
-      if(!top4.includes(sec))return;
-      if(!bySec[sec])bySec[sec]=[];
-      if(bySec[sec].length<2)bySec[sec].push(s);
+    const top5 = sectorRanking.slice(0, 5).map(x => x.sec);
+    const bySec = {};
+    candidates.forEach(s => {
+      const sec = s.sector || 'N/A';
+      if (!top5.includes(sec)) return;
+      if (!bySec[sec]) bySec[sec] = [];
+      if (bySec[sec].length < 2) bySec[sec].push(s);
     });
-    candidates=Object.values(bySec).flat();
-  } else if (theme.onePerSector) {
-    const seen=new Set();
-    candidates=candidates.filter(s=>{
-      const sec=s.sector||'N/A';
-      if(seen.has(sec))return false;
-      seen.add(sec);return true;
+    candidates = Object.values(bySec).flat();
+    // If top5 gives fewer than 5 stocks, expand to all sectors
+    if (candidates.length < 5) {
+      const allBySec = {};
+      allSignals.filter(s=>s.type==='buy'&&s.score>=scoreFloor&&theme.filter(s))
+        .sort((a,b)=>b.score-a.score)
+        .forEach(s=>{
+          const sec=s.sector||'N/A';
+          if(!allBySec[sec])allBySec[sec]=[];
+          if(allBySec[sec].length<2)allBySec[sec].push(s);
+        });
+      candidates = Object.values(allBySec).flat().slice(0,10);
+    }
+  }
+  // One per sector mode
+  else if (theme.onePerSector) {
+    const seen = new Set();
+    candidates = candidates.filter(s => {
+      const sec = s.sector || 'N/A';
+      if (seen.has(sec)) return false;
+      seen.add(sec); return true;
     });
-  } else {
-    candidates=deduplicateSectors(candidates,2);
+  }
+  // Standard — max 2 per sector within this portfolio
+  else {
+    candidates = deduplicateSectors(candidates, 2);
   }
 
-  candidates=candidates.slice(0,10);
-  if(candidates.length<3)return null;
+  // Take top 10
+  candidates = candidates.slice(0, 10);
+  if (candidates.length < 3) return null;
 
-  const totalWR = candidates.reduce((s,c)=>s+Math.max(wrVal(c),50),0);
-  const today=new Date();
-  const dissolve=new Date(today);
-  dissolve.setDate(dissolve.getDate()+7);
-
-  // Label which generation cycle this is (Mon/Wed/Fri)
+  // Kelly-weighted position sizes using actual win rates
+  const totalWR = candidates.reduce((s,c) => s + Math.max(wrVal(c), 50), 0);
+  const today = new Date();
+  const dissolve = new Date(today);
+  dissolve.setDate(dissolve.getDate() + 7);
   const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][today.getDay()];
   const cycleLabel = dayName==='Mon'?'MON SET':dayName==='Wed'?'WED SET':dayName==='Fri'?'FRI SET':'MANUAL';
 
-  const stocks = candidates.map(c=>{
-    const wr  = Math.max(wrVal(c),50);
-    const wgt = wr/totalWR;
-    const sz  = Math.max(Math.round((capitalPerPf*wgt)/100)*100, 5000);
+  const stocks = candidates.map(c => {
+    const wr  = Math.max(wrVal(c), 50);
+    const wgt = wr / totalWR;
+    const sz  = Math.max(Math.round((capitalPerPf * wgt) / 100) * 100, 5000);
     return {
-      symbol:c.symbol, sector:c.sector||'N/A', index:c.index||'N/A',
-      signal:c.signal, zone:c.bandZone, score:c.score, winRate:wr,
-      entryPrice:c.price, kellySize:sz,
-      tp:c.takeProfit||+(c.price*1.02).toFixed(2),
-      sl:c.stopLoss||+(c.price*0.96).toFixed(2),
-      status:'open', dailyPnl:[null,null,null,null,null],
-      currentPrice:c.price, entryDate:today.toISOString().slice(0,10),
+      symbol: c.symbol, sector: c.sector||'N/A', index: c.index||'N/A',
+      signal: c.signal, zone: c.bandZone, score: c.score, winRate: wr,
+      entryPrice: c.price, kellySize: sz,
+      tp: c.takeProfit || +(c.price * 1.02).toFixed(2),
+      sl: c.stopLoss   || +(c.price * 0.96).toFixed(2),
+      status: 'open', dailyPnl: [null,null,null,null,null],
+      currentPrice: c.price, entryDate: today.toISOString().slice(0,10),
     };
   });
 
   return {
-    id:theme.id+'-'+today.toISOString().slice(0,10),
-    themeId:theme.id, themeName:theme.name, themeIcon:theme.icon,
-    themeIconBg:theme.iconBg, themeIconCol:theme.iconCol, themeDesc:theme.desc,
-    generatedDate:today.toISOString().slice(0,10),
-    dissolveDate:dissolve.toISOString().slice(0,10),
-    cycleLabel,
-    day:1, status:'active', stocks,
-    portfolioPnl:[null,null,null,null,null],
-    lastUpdated:today.toISOString().slice(0,10),
+    id: theme.id + '-' + today.toISOString().slice(0,10),
+    themeId: theme.id, themeName: theme.name, themeIcon: theme.icon,
+    themeIconBg: theme.iconBg, themeIconCol: theme.iconCol, themeDesc: theme.desc,
+    generatedDate: today.toISOString().slice(0,10),
+    dissolveDate:  dissolve.toISOString().slice(0,10),
+    cycleLabel, day: 1, status: 'active', stocks,
+    portfolioPnl: [null,null,null,null,null],
+    lastUpdated: today.toISOString().slice(0,10),
   };
 }
 
@@ -5871,36 +5931,26 @@ function _doGenerate(minScore, capitalPF, silent) {
   const sectorRank = rankSectors();
   const today = new Date().toISOString().slice(0,10);
 
-  // ── GLOBAL used-symbols set — no stock repeats across portfolios ──
-  const usedSymbols = new Set();
-  // Pre-fill from already active portfolios generated TODAY (with actual stocks)
-  pePortfolios
-    .filter(p=>p.generatedDate===today && p.status==='active' && p.stocks && p.stocks.length>0)
-    .forEach(p=>p.stocks.forEach(s=>usedSymbols.add(s.symbol)));
-
   let built = 0;
-  PE_THEMES.forEach(theme=>{
-    // Only skip if a valid portfolio with actual stocks exists for this theme today
-    const exists = pePortfolios.find(p=>
-      p.themeId===theme.id &&
-      p.generatedDate===today &&
-      p.status==='active' &&
-      p.stocks && p.stocks.length>0
+  PE_THEMES.forEach(theme => {
+    // Skip if a valid portfolio with actual stocks already exists for this theme today
+    const exists = pePortfolios.find(p =>
+      p.themeId === theme.id &&
+      p.generatedDate === today &&
+      p.status === 'active' &&
+      p.stocks && p.stocks.length > 0
     );
     if (exists) return;
 
-    // Remove any empty/invalid entry for this theme today before rebuilding
-    pePortfolios = pePortfolios.filter(p=>
-      !(p.themeId===theme.id && p.generatedDate===today && (!p.stocks || p.stocks.length===0))
+    // Remove any empty/corrupt entry for this theme today
+    pePortfolios = pePortfolios.filter(p =>
+      !(p.themeId === theme.id && p.generatedDate === today && (!p.stocks || p.stocks.length === 0))
     );
 
-    const pf = buildPortfolio(theme, minScore, capitalPF, sectorRank, usedSymbols);
-    if (pf) {
-      pf.stocks.forEach(s=>usedSymbols.add(s.symbol));
-      pePortfolios.push(pf);
-      built++;
-    }
+    const pf = buildPortfolio(theme, minScore, capitalPF, sectorRank);
+    if (pf) { pePortfolios.push(pf); built++; }
   });
+
   if (built > 0) { peSave(); updateTabBadges(); }
   if (!silent && built > 0) renderPortfolioPage();
   return built;
