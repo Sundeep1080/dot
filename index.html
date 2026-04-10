@@ -1938,7 +1938,7 @@ body::before {
 
 /* Page sections */
 .page-section { display: none; }
-.page-section.active { display: contents; }
+.page-section.active { display: block; }
 
 /* ═══════════════════════════════════════════════════════
    PORTFOLIO ENGINE — PAGE 2
@@ -5561,6 +5561,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 style="padding:8px 14px;font-size:11px;">
           <i class="fas fa-trash-alt"></i> Clear All
         </button>
+        <button class="btn btn-ghost" onclick="resetStorage()"
+                style="padding:8px 14px;font-size:11px;color:var(--bear);">
+          <i class="fas fa-rotate"></i> Reset Storage
+        </button>
       </div>
     </div>
 
@@ -5851,9 +5855,14 @@ function generatePortfolios() {
   renderPortfolioPage();
   switchPage('p2');
   if (built === 0) {
-    toast('Portfolios already generated today. Clear first to regenerate.','warn');
+    const active = pePortfolios.filter(p=>p.status==='active').length;
+    if (active > 0) {
+      toast(`${active} portfolios already active for today. Upload tomorrow's CSV to track progress.`,'info');
+    } else {
+      toast('No qualifying stocks found. Try lowering Min Score threshold.','warn');
+    }
   } else {
-    toast(`Generated ${built} new portfolios · ${pePortfolios.filter(p=>p.status==='active').length} total active`,'ok');
+    toast(`✓ Generated ${built} portfolios · No stock repeats across all ${pePortfolios.filter(p=>p.status==='active').length} active portfolios`,'ok');
   }
 }
 
@@ -5864,17 +5873,29 @@ function _doGenerate(minScore, capitalPF, silent) {
 
   // ── GLOBAL used-symbols set — no stock repeats across portfolios ──
   const usedSymbols = new Set();
-  // Pre-fill from already active portfolios generated TODAY
-  pePortfolios.filter(p=>p.generatedDate===today&&p.status==='active')
+  // Pre-fill from already active portfolios generated TODAY (with actual stocks)
+  pePortfolios
+    .filter(p=>p.generatedDate===today && p.status==='active' && p.stocks && p.stocks.length>0)
     .forEach(p=>p.stocks.forEach(s=>usedSymbols.add(s.symbol)));
 
   let built = 0;
   PE_THEMES.forEach(theme=>{
-    const exists = pePortfolios.find(p=>p.themeId===theme.id&&p.generatedDate===today&&p.status==='active');
+    // Only skip if a valid portfolio with actual stocks exists for this theme today
+    const exists = pePortfolios.find(p=>
+      p.themeId===theme.id &&
+      p.generatedDate===today &&
+      p.status==='active' &&
+      p.stocks && p.stocks.length>0
+    );
     if (exists) return;
+
+    // Remove any empty/invalid entry for this theme today before rebuilding
+    pePortfolios = pePortfolios.filter(p=>
+      !(p.themeId===theme.id && p.generatedDate===today && (!p.stocks || p.stocks.length===0))
+    );
+
     const pf = buildPortfolio(theme, minScore, capitalPF, sectorRank, usedSymbols);
     if (pf) {
-      // Add this portfolio's stocks to used set
       pf.stocks.forEach(s=>usedSymbols.add(s.symbol));
       pePortfolios.push(pf);
       built++;
@@ -5946,6 +5967,13 @@ function clearPortfolios() {
   if(!confirm('Clear all active portfolios?'))return;
   pePortfolios=[]; peSave(); updateTabBadges(); renderPortfolioPage();
   toast('All portfolios cleared','info');
+}
+function resetStorage() {
+  if(!confirm('Reset ALL portfolio storage? This clears active + archive.'))return;
+  pePortfolios=[]; peArchive=[];
+  try { localStorage.removeItem(PE_STORAGE_KEY); localStorage.removeItem(PE_ARCHIVE_KEY); } catch(e){}
+  updateTabBadges(); renderPortfolioPage();
+  toast('Storage reset. Ready to generate fresh portfolios.','ok');
 }
 function clearArchive() {
   if(!confirm('Clear archive?'))return;
