@@ -5651,88 +5651,121 @@ function switchPage(id) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   PORTFOLIO ENGINE CONSTANTS
-   Themes differentiate by sector, zone, index tier,
-   score tier and signal type — not signal type alone.
-   This ensures all 10 portfolios fill regardless of
-   whether it's a B3-dominant or B1/B2-dominant day.
+   PORTFOLIO ENGINE CONSTANTS — v3
+   10 themes. 2 are anticipatory (WAIT stocks).
+   Min 5, max 10 stocks per portfolio.
+   Themes split by index tier, zone, sector, signal type.
 ═══════════════════════════════════════════════════════ */
+
+// Pre-signal scoring — how close is a WAIT stock to triggering
+function preSignalScore(s) {
+  if (s.type !== 'wait') return 0;
+  let score = 0;
+  const smi  = s.smi  || 0;
+  const smiS = s.smiSig || 0;
+  const h9   = s.hma9  || 0;
+  const h10  = s.hma10 || 0;
+  const zone = s.bandZone || '';
+
+  // Pre-B1-OS: SMI deeply oversold, in buy zone — one bar from trigger
+  if (smi < -15 && (zone==='rej_lo'||zone==='below_va')) {
+    score += 40;
+    if (smi < -25) score += 20;
+    if (zone==='rej_lo') score += 15;
+  }
+  // Pre-B2: HMA9 close to crossing HMA10 from below
+  if (h9 < h10 && h10 > 0) {
+    const gap = (h10 - h9) / h10 * 100;
+    if (gap < 0.3) score += 50; // very close
+    else if (gap < 0.8) score += 30;
+    else if (gap < 1.5) score += 15;
+  }
+  // Pre-B1-MOM: SMI curling up from oversold
+  if (smi > -20 && smi < 0 && smiS < smi && (zone==='rej_lo'||zone==='below_va')) {
+    score += 25;
+  }
+  return Math.min(100, score);
+}
+
 const PE_THEMES = [
   { id:'P01', name:'ALPHA BULL',
     icon:'fas fa-crown', iconBg:'rgba(217,119,6,0.15)', iconCol:'#d97706',
     desc:'Top 10 highest scoring buy signals today',
-    minScore:30, maxBarsAgo:7,
     filter:(s)=>s.type==='buy',
     sort:(a,b)=>b.score-a.score },
 
   { id:'P02', name:'NIFTY 50 LEADERS',
     icon:'fas fa-building-columns', iconBg:'rgba(99,102,241,0.12)', iconCol:'#6366f1',
     desc:'Large cap NIFTY 50 stocks only — lower risk, high liquidity',
-    minScore:30, maxBarsAgo:7,
-    filter:(s)=>s.type==='buy' && (s.index||'').toUpperCase().includes('NIFTY 50') &&
-                !(s.index||'').toUpperCase().includes('SMALL') &&
-                !(s.index||'').toUpperCase().includes('MID'),
+    filter:(s)=>s.type==='buy' &&
+      (s.index||'').toUpperCase().includes('NIFTY 50') &&
+      !(s.index||'').toUpperCase().includes('SMALL') &&
+      !(s.index||'').toUpperCase().includes('MID') &&
+      !(s.index||'').toUpperCase().includes('NEXT'),
     sort:(a,b)=>b.score-a.score },
 
   { id:'P03', name:'MIDCAP MOMENTUM',
     icon:'fas fa-chart-line', iconBg:'rgba(5,150,105,0.12)', iconCol:'#059669',
-    desc:'NIFTY MIDCAP 150 stocks — mid-tier growth plays',
-    minScore:30, maxBarsAgo:7,
+    desc:'NIFTY MIDCAP 150 — mid-tier growth with momentum',
     filter:(s)=>s.type==='buy' && (s.index||'').toUpperCase().includes('MIDCAP'),
     sort:(a,b)=>b.score-a.score },
 
   { id:'P04', name:'SMALLCAP ALPHA',
     icon:'fas fa-seedling', iconBg:'rgba(16,185,129,0.10)', iconCol:'#10b981',
     desc:'NIFTY SMALLCAP 250 — high beta, high return potential',
-    minScore:30, maxBarsAgo:7,
     filter:(s)=>s.type==='buy' && (s.index||'').toUpperCase().includes('SMALL'),
     sort:(a,b)=>b.score-a.score },
 
   { id:'P05', name:'SECTOR LEADERS',
     icon:'fas fa-fire', iconBg:'rgba(234,88,12,0.12)', iconCol:'#ea580c',
     desc:'Top 2 stocks from each of top 5 strongest sectors today',
-    minScore:30, maxBarsAgo:7,
     filter:(s)=>s.type==='buy',
     sort:(a,b)=>b.score-a.score, sectorMode:true },
 
   { id:'P06', name:'REJ & OVERSOLD',
     icon:'fas fa-crosshairs', iconBg:'rgba(129,140,248,0.12)', iconCol:'#818cf8',
-    desc:'REJ↓ zone + Below VA — best mean reversion entries available',
-    minScore:30, maxBarsAgo:7,
+    desc:'REJ↓ zone + Below VA — best mean reversion entries',
     filter:(s)=>s.type==='buy' && (s.bandZone==='rej_lo'||s.bandZone==='below_va'),
     sort:(a,b)=>b.score-a.score },
 
-  { id:'P07', name:'IN VALUE AREA',
-    icon:'fas fa-bullseye', iconBg:'rgba(217,119,6,0.10)', iconCol:'#d97706',
-    desc:'Stocks trading inside the Value Area — balanced zone entries',
-    minScore:30, maxBarsAgo:7,
-    filter:(s)=>s.type==='buy' && s.bandZone==='va',
-    sort:(a,b)=>b.score-a.score },
-
-  { id:'P08', name:'DIVERSIFIED INDIA',
-    icon:'fas fa-globe', iconBg:'rgba(99,102,241,0.10)', iconCol:'#6366f1',
-    desc:'Exactly 1 best stock from each of 8+ different sectors',
-    minScore:30, maxBarsAgo:7,
+  { id:'P07', name:'DIVERSIFIED INDIA',
+    icon:'fas fa-globe', iconBg:'rgba(217,119,6,0.10)', iconCol:'#d97706',
+    desc:'Best 1 stock from each of 8+ different sectors',
     filter:(s)=>s.type==='buy',
     sort:(a,b)=>b.score-a.score, onePerSector:true },
 
-  { id:'P09', name:'FINANCIALS FOCUS',
-    icon:'fas fa-landmark', iconBg:'rgba(5,150,105,0.10)', iconCol:'#059669',
-    desc:'Financial Services sector — banks, NBFCs, insurance',
-    minScore:30, maxBarsAgo:7,
-    filter:(s)=>s.type==='buy' && (s.sector||'').toLowerCase().includes('financ'),
-    sort:(a,b)=>b.score-a.score },
-
-  { id:'P10', name:'PREMIUM SIGNALS',
+  { id:'P08', name:'STRONG BUY ONLY',
     icon:'fas fa-bolt', iconBg:'rgba(220,38,38,0.10)', iconCol:'#dc2626',
-    desc:'B1-OS, B1-MOM, B2 priority — B3 fills if needed',
-    minScore:30, maxBarsAgo:7,
-    filter:(s)=>s.type==='buy',
+    desc:'ONLY B1-OS, B1-MOM, B2 — no B3. Skipped if fewer than 5 qualify.',
+    filter:(s)=>s.type==='buy' && (s.signal==='B1-OS'||s.signal==='B1-MOM'||s.signal==='B2'),
     sort:(a,b)=>{
-      // Priority: B1-OS > B1-MOM > B2 > B3, then by score
-      const sigRank = {'B1-OS':4,'B1-MOM':3,'B2':2,'B3':1};
-      const ar = sigRank[a.signal]||0, br = sigRank[b.signal]||0;
+      // B1-OS first (highest edge), then B2, then B1-MOM, then score
+      const r={'B1-OS':3,'B2':2,'B1-MOM':1};
+      const ar=r[a.signal]||0, br=r[b.signal]||0;
       return br!==ar ? br-ar : b.score-a.score;
+    }},
+
+  // ── ANTICIPATORY PORTFOLIO 1 — Pre-B1/B2 setups ──
+  { id:'P09', name:'PRE-SIGNAL WATCH',
+    icon:'fas fa-eye', iconBg:'rgba(99,102,241,0.12)', iconCol:'#6366f1',
+    desc:'WAIT stocks near B1-OS/B2 trigger — setup complete, awaiting confirmation',
+    isAnticipatory: true,
+    filter:(s)=>s.type==='wait' && preSignalScore(s) >= 25,
+    sort:(a,b)=>preSignalScore(b)-preSignalScore(a) },
+
+  // ── ANTICIPATORY PORTFOLIO 2 — HMA crossover imminent ──
+  { id:'P10', name:'HMA CROSSOVER WATCH',
+    icon:'fas fa-chart-simple', iconBg:'rgba(5,150,105,0.10)', iconCol:'#059669',
+    desc:'WAIT stocks where HMA9 is within 1% of crossing HMA10 upward',
+    isAnticipatory: true,
+    filter:(s)=>s.type==='wait' && s.hma9 && s.hma10 &&
+                s.hma9 < s.hma10 &&
+                ((s.hma10 - s.hma9)/s.hma10*100) < 1.5,
+    sort:(a,b)=>{
+      // Closest to crossover first
+      const gapA = a.hma10>0 ? (a.hma10-a.hma9)/a.hma10*100 : 99;
+      const gapB = b.hma10>0 ? (b.hma10-b.hma9)/b.hma10*100 : 99;
+      return gapA - gapB;
     }},
 ];
 
@@ -5792,55 +5825,45 @@ function deduplicateSectors(stocks, max=2) {
 }
 
 function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
-  // Each theme uses its own minScore — never override with a high global floor
-  const scoreFloor  = theme.minScore || 30;
-  const barsAgoMax  = theme.maxBarsAgo || 7;
+  // Anticipatory portfolios use all WAIT signals regardless of minScore
+  const isAntic = theme.isAnticipatory || false;
 
-  // Build candidate pool independently per theme — no global exclusion
-  let candidates = allSignals.filter(s =>
-    s.type === 'buy' &&
-    s.score >= scoreFloor &&
-    (s.barsAgo || 99) <= barsAgoMax &&
-    theme.filter(s)
-  );
-
+  let candidates = allSignals.filter(s => theme.filter(s));
   if (!candidates.length) return null;
 
-  // Sort
   if (theme.sort) candidates.sort(theme.sort);
   else candidates.sort((a,b) => b.score - a.score);
 
-  // Sector mode — top 2 from each of top 5 sectors
+  // Sector mode — top 2 from top 5 sectors
   if (theme.sectorMode) {
-    const top5 = sectorRanking.slice(0, 5).map(x => x.sec);
+    const top5 = sectorRanking.slice(0,5).map(x=>x.sec);
     const bySec = {};
-    candidates.forEach(s => {
-      const sec = s.sector || 'N/A';
-      if (!top5.includes(sec)) return;
-      if (!bySec[sec]) bySec[sec] = [];
-      if (bySec[sec].length < 2) bySec[sec].push(s);
+    candidates.forEach(s=>{
+      const sec=s.sector||'N/A';
+      if(!top5.includes(sec))return;
+      if(!bySec[sec])bySec[sec]=[];
+      if(bySec[sec].length<2)bySec[sec].push(s);
     });
-    candidates = Object.values(bySec).flat();
-    // If top5 gives fewer than 5 stocks, expand to all sectors
-    if (candidates.length < 5) {
+    let pool = Object.values(bySec).flat();
+    // If <5 stocks from top5, expand to all sectors
+    if (pool.length < 5) {
       const allBySec = {};
-      allSignals.filter(s=>s.type==='buy'&&s.score>=scoreFloor&&theme.filter(s))
-        .sort((a,b)=>b.score-a.score)
-        .forEach(s=>{
-          const sec=s.sector||'N/A';
-          if(!allBySec[sec])allBySec[sec]=[];
-          if(allBySec[sec].length<2)allBySec[sec].push(s);
-        });
-      candidates = Object.values(allBySec).flat().slice(0,10);
+      candidates.forEach(s=>{
+        const sec=s.sector||'N/A';
+        if(!allBySec[sec])allBySec[sec]=[];
+        if(allBySec[sec].length<2)allBySec[sec].push(s);
+      });
+      pool = Object.values(allBySec).flat().slice(0,10);
     }
+    candidates = pool;
   }
-  // One per sector mode
+  // One per sector
   else if (theme.onePerSector) {
     const seen = new Set();
-    candidates = candidates.filter(s => {
-      const sec = s.sector || 'N/A';
-      if (seen.has(sec)) return false;
-      seen.add(sec); return true;
+    candidates = candidates.filter(s=>{
+      const sec=s.sector||'N/A';
+      if(seen.has(sec))return false;
+      seen.add(sec);return true;
     });
   }
   // Standard — max 2 per sector within this portfolio
@@ -5848,42 +5871,54 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
     candidates = deduplicateSectors(candidates, 2);
   }
 
-  // Take top 10
+  // Enforce min 5 / max 10
   candidates = candidates.slice(0, 10);
-  if (candidates.length < 3) return null;
+  if (candidates.length < 5) return null;  // ← min 5
 
-  // Kelly-weighted position sizes using actual win rates
-  const totalWR = candidates.reduce((s,c) => s + Math.max(wrVal(c), 50), 0);
   const today = new Date();
   const dissolve = new Date(today);
   dissolve.setDate(dissolve.getDate() + 7);
   const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][today.getDay()];
   const cycleLabel = dayName==='Mon'?'MON SET':dayName==='Wed'?'WED SET':dayName==='Fri'?'FRI SET':'MANUAL';
 
-  const stocks = candidates.map(c => {
-    const wr  = Math.max(wrVal(c), 50);
+  // For anticipatory portfolios use flat sizing — no Kelly weighting on WAIT stocks
+  const totalWR = isAntic
+    ? candidates.length * 50
+    : candidates.reduce((s,c)=>s+Math.max(wrVal(c),50),0);
+
+  const stocks = candidates.map(c=>{
+    const wr  = isAntic ? 50 : Math.max(wrVal(c), 50);
     const wgt = wr / totalWR;
-    const sz  = Math.max(Math.round((capitalPerPf * wgt) / 100) * 100, 5000);
+    const sz  = Math.max(Math.round((capitalPerPf*wgt)/100)*100, 5000);
+    const psc = isAntic ? preSignalScore(c) : null;
     return {
-      symbol: c.symbol, sector: c.sector||'N/A', index: c.index||'N/A',
-      signal: c.signal, zone: c.bandZone, score: c.score, winRate: wr,
-      entryPrice: c.price, kellySize: sz,
-      tp: c.takeProfit || +(c.price * 1.02).toFixed(2),
-      sl: c.stopLoss   || +(c.price * 0.96).toFixed(2),
-      status: 'open', dailyPnl: [null,null,null,null,null],
-      currentPrice: c.price, entryDate: today.toISOString().slice(0,10),
+      symbol:c.symbol, sector:c.sector||'N/A', index:c.index||'N/A',
+      signal: isAntic ? ('PRE-'+(
+        c.hma9&&c.hma10&&c.hma9<c.hma10&&((c.hma10-c.hma9)/c.hma10*100)<1.5 ? 'B2' :
+        (c.smi||0)<-15 ? 'B1-OS' : 'SETUP'
+      )) : c.signal,
+      zone:c.bandZone, score:isAntic?psc:c.score, winRate:wr,
+      entryPrice:c.price, kellySize:sz,
+      tp:c.takeProfit||+(c.price*1.02).toFixed(2),
+      sl:c.stopLoss||+(c.price*0.96).toFixed(2),
+      status:'open', dailyPnl:[null,null,null,null,null],
+      currentPrice:c.price, entryDate:today.toISOString().slice(0,10),
+      isAnticipatory: isAntic,
+      hmaGap: c.hma9&&c.hma10&&c.hma10>0 ? +((c.hma10-c.hma9)/c.hma10*100).toFixed(2) : null,
+      smiVal: c.smi ? +c.smi.toFixed(1) : null,
     };
   });
 
   return {
-    id: theme.id + '-' + today.toISOString().slice(0,10),
-    themeId: theme.id, themeName: theme.name, themeIcon: theme.icon,
-    themeIconBg: theme.iconBg, themeIconCol: theme.iconCol, themeDesc: theme.desc,
-    generatedDate: today.toISOString().slice(0,10),
-    dissolveDate:  dissolve.toISOString().slice(0,10),
-    cycleLabel, day: 1, status: 'active', stocks,
-    portfolioPnl: [null,null,null,null,null],
-    lastUpdated: today.toISOString().slice(0,10),
+    id:theme.id+'-'+today.toISOString().slice(0,10),
+    themeId:theme.id, themeName:theme.name, themeIcon:theme.icon,
+    themeIconBg:theme.iconBg, themeIconCol:theme.iconCol, themeDesc:theme.desc,
+    isAnticipatory:isAntic,
+    generatedDate:today.toISOString().slice(0,10),
+    dissolveDate:dissolve.toISOString().slice(0,10),
+    cycleLabel, day:1, status:'active', stocks,
+    portfolioPnl:[null,null,null,null,null],
+    lastUpdated:today.toISOString().slice(0,10),
   };
 }
 
@@ -5942,28 +5977,27 @@ function _doGenerate(minScore, capitalPF, silent) {
   const sectorRank = rankSectors();
   const today = new Date().toISOString().slice(0,10);
 
-  let built = 0;
-  PE_THEMES.forEach(theme => {
-    // Skip if a valid portfolio with actual stocks already exists for this theme today
-    const exists = pePortfolios.find(p =>
-      p.themeId === theme.id &&
-      p.generatedDate === today &&
-      p.status === 'active' &&
-      p.stocks && p.stocks.length > 0
+  let built=0, skipped=[];
+  PE_THEMES.forEach(theme=>{
+    const exists = pePortfolios.find(p=>
+      p.themeId===theme.id &&
+      p.generatedDate===today &&
+      p.status==='active' &&
+      p.stocks && p.stocks.length>0
     );
     if (exists) return;
-
-    // Remove any empty/corrupt entry for this theme today
-    pePortfolios = pePortfolios.filter(p =>
-      !(p.themeId === theme.id && p.generatedDate === today && (!p.stocks || p.stocks.length === 0))
+    pePortfolios = pePortfolios.filter(p=>
+      !(p.themeId===theme.id && p.generatedDate===today && (!p.stocks || p.stocks.length===0))
     );
-
     const pf = buildPortfolio(theme, minScore, capitalPF, sectorRank);
     if (pf) { pePortfolios.push(pf); built++; }
+    else skipped.push(theme.name);
   });
-
   if (built > 0) { peSave(); updateTabBadges(); }
   if (!silent && built > 0) renderPortfolioPage();
+  if (!silent && skipped.length) {
+    toast(`Skipped (insufficient signals): ${skipped.join(', ')}`, 'warn');
+  }
   return built;
 }
 
@@ -6057,16 +6091,9 @@ function renderPortfolioPage() {
   if (schedEl) {
     const today = new Date().toISOString().slice(0,10);
     const genToday = pePortfolios.some(p=>p.generatedDate===today&&p.status==='active');
-    if (genToday) {
-      schedEl.textContent = '✓ Generated today';
-      schedEl.style.color = 'var(--bull)';
-    } else if (isGenerationDay()) {
-      schedEl.textContent = '📅 Today is a generation day!';
-      schedEl.style.color = 'var(--amber)';
-    } else {
-      schedEl.textContent = `Next: ${getNextGenerationDay()}`;
-      schedEl.style.color = 'var(--text3)';
-    }
+    if (genToday) { schedEl.textContent='✓ Generated today'; schedEl.style.color='var(--bull)'; }
+    else if (isGenerationDay()) { schedEl.textContent='📅 Today is a generation day!'; schedEl.style.color='var(--amber)'; }
+    else { schedEl.textContent=`Next: ${getNextGenerationDay()}`; schedEl.style.color='var(--text3)'; }
   }
 
   renderSectorStrip();
@@ -6078,7 +6105,41 @@ function renderPortfolioPage() {
     return;
   }
   if(empty)empty.style.display='none';
-  grid.innerHTML=active.map(pf=>renderPfCard(pf)).join('');
+
+  // Group by generatedDate (each Mon/Wed/Fri batch)
+  const groups = {};
+  active.forEach(pf=>{
+    const key = pf.generatedDate;
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(pf);
+  });
+
+  // Sort groups newest first
+  const sortedDates = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  grid.innerHTML = sortedDates.map(date=>{
+    const batch = groups[date];
+    const cycleLabel = batch[0].cycleLabel || date;
+    const dayLabel = new Date(date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+    const batchReturn = batch.reduce((s,p)=>s+calcPfReturn(p),0)/batch.length;
+    const retCol = batchReturn>0?'var(--bull)':batchReturn<0?'var(--bear)':'var(--wait)';
+
+    const header = `
+      <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;
+                  padding:8px 14px;background:var(--bg2);border:1px solid var(--border);
+                  border-radius:var(--radius);border-left:4px solid var(--amber);
+                  font-family:var(--mono);">
+        <span style="font-size:12px;font-weight:700;color:var(--bright)">${cycleLabel}</span>
+        <span style="font-size:10px;color:var(--text3)">${dayLabel}</span>
+        <span style="font-size:10px;color:var(--text2)">Day ${batch[0].day}/5</span>
+        <span style="font-size:11px;font-weight:700;color:${retCol};margin-left:auto">
+          Avg ${batchReturn>=0?'+':''}${batchReturn.toFixed(1)}%
+        </span>
+        <span style="font-size:10px;color:var(--text3)">${batch.length} portfolios · Dissolves ${batch[0].dissolveDate}</span>
+      </div>`;
+
+    return header + batch.map(pf=>renderPfCard(pf)).join('');
+  }).join('');
 }
 
 function renderSectorStrip() {
@@ -6108,6 +6169,7 @@ function renderPfCard(pf) {
   const ret=calcPfReturn(pf);
   const retCls=ret>0?'pf-pnl-pos':ret<0?'pf-pnl-neg':'pf-pnl-neu';
   const cardCls=ret>0.5?'pf-card pf-winning':ret<-1?'pf-card pf-losing':pf.day===1?'pf-card pf-new':'pf-card pf-active';
+  const isStrongBuy = pf.themeId === 'P08';
   const tpHit=pf.stocks.filter(s=>s.status==='tp').length;
   const slHit=pf.stocks.filter(s=>s.status==='sl').length;
   const open=pf.stocks.filter(s=>['open','near_tp','near_sl'].includes(s.status)).length;
@@ -6133,7 +6195,14 @@ function renderPfCard(pf) {
     const sc={tp:'ss-tp',sl:'ss-sl',open:'ss-open',near_tp:'ss-near-tp',near_sl:'ss-near-sl'}[st.status]||'ss-open';
     const sl2={tp:'✓ TP HIT',sl:'✗ SL HIT',open:'◉ Open',near_tp:'↑ Near TP',near_sl:'↓ Near SL'}[st.status]||'◉ Open';
     const zs={rej_lo:'REJ↓',below_va:'BelVA',va:'InVA',above_va:'AbvVA',rej_hi:'REJ↑'}[st.zone]||st.zone;
-    const sigCol=st.signal.startsWith('B')?'var(--bull)':'var(--bear)';
+    const sigCol = pf.isAnticipatory ? '#818cf8' : st.signal.startsWith('B')?'var(--bull)':'var(--bear)';
+    // Extra info for anticipatory
+    const anticExtra = pf.isAnticipatory
+      ? `<span style="font-size:9px;color:var(--text3);font-family:var(--mono)">` +
+        (st.hmaGap!==null ? `Gap:${st.hmaGap}%` : '') +
+        (st.smiVal!==null ? ` SMI:${st.smiVal}` : '') +
+        `</span>`
+      : `<span style="font-size:10px;color:var(--text2)">WR${st.winRate}%</span>`;
     return `<div class="pf-stock-row">
       <span class="psr-sym">${st.symbol}</span>
       <span class="psr-sig" style="color:${sigCol}">${st.signal}</span>
@@ -6141,7 +6210,7 @@ function renderPfCard(pf) {
       <span class="psr-sc">${st.score}</span>
       <span class="psr-size">₹${(st.kellySize/1000).toFixed(0)}k</span>
       <span class="${rc}">${r>0?'+':''}${r}%</span>
-      <span style="font-size:10px;color:var(--text2)">WR${st.winRate}%</span>
+      ${anticExtra}
       <span class="psr-status ${sc}">${sl2}</span>
     </div>`;
   }).join('');
@@ -6156,6 +6225,8 @@ function renderPfCard(pf) {
         <span class="pf-day-badge">Day ${pf.day}/5</span>
         <span class="pf-status-badge psb-active">● ACTIVE</span>
         ${pf.cycleLabel?`<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(99,102,241,0.10);color:#4338ca;border:1px solid rgba(99,102,241,0.25)">${pf.cycleLabel}</span>`:''}
+        ${pf.isAnticipatory?`<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(129,140,248,0.15);color:#6366f1;border:1px solid rgba(129,140,248,0.35)">👁 WATCH</span>`:''}
+        ${isStrongBuy?`<span style="font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(220,38,38,0.12);color:#dc2626;border:1px solid rgba(220,38,38,0.35)">⚡ STRONG BUY ONLY</span>`:''}
       </div>
     </div>
     <div class="pf-pnl-strip">
