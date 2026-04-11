@@ -5538,15 +5538,28 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="pe-controls">
         <div class="pe-param">
           <label>Min Score</label>
-          <input type="number" id="pe_minScore" value="75" min="50" max="100" step="5">
+          <input type="number" id="pe_minScore" value="30" min="10" max="100" step="5"
+                 style="width:60px;">
         </div>
         <div class="pe-param">
           <label>Capital/Portfolio ₹</label>
-          <input type="number" id="pe_capital" value="60000" min="10000" step="10000">
+          <input type="number" id="pe_capital" value="60000" min="10000" step="10000"
+                 style="width:90px;">
         </div>
         <div class="pe-param">
-          <label>Min WR %</label>
-          <input type="number" id="pe_minWR" value="50" min="0" max="100" step="5">
+          <label>TP / SL</label>
+          <select id="pe_tpsl"
+                  style="padding:4px 7px;border:1px solid var(--border);border-radius:var(--radius);
+                         background:var(--bg3);font-family:var(--mono);font-size:11px;
+                         font-weight:700;color:var(--bright);cursor:pointer;outline:none;">
+            <option value="1.5_3.0">+1.5% / -3.0% ⭐</option>
+            <option value="1.0_3.0">+1.0% / -3.0%</option>
+            <option value="2.0_4.0">+2.0% / -4.0%</option>
+            <option value="1.5_4.0">+1.5% / -4.0%</option>
+            <option value="2.0_3.0">+2.0% / -3.0%</option>
+            <option value="2.5_5.0">+2.5% / -5.0%</option>
+            <option value="1.0_2.0">+1.0% / -2.0%</option>
+          </select>
         </div>
         <button class="btn btn-primary" id="peGenBtn" onclick="generatePortfolios()" disabled
                 style="padding:8px 18px;font-size:12px;">
@@ -5565,6 +5578,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 style="padding:8px 14px;font-size:11px;color:var(--bear);">
           <i class="fas fa-rotate"></i> Reset Storage
         </button>
+        <button class="btn btn-export" onclick="exportAllActiveCSV()"
+                style="padding:8px 14px;font-size:11px;">
+          <i class="fas fa-download"></i> Export All CSV
+        </button>
       </div>
     </div>
 
@@ -5578,6 +5595,10 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="sec-strength-bar" id="peSectorBars"></div>
     </div>
+
+    <!-- Regime Warning Banner -->
+    <div id="peRegimeBanner" style="display:none;padding:10px 16px;border-radius:var(--radius);
+         font-family:var(--mono);font-size:11px;border:1px solid;margin-bottom:2px;"></div>
 
     <!-- Portfolio cards grid -->
     <div class="pe-grid" id="peGrid">
@@ -5651,125 +5672,112 @@ function switchPage(id) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   PORTFOLIO ENGINE CONSTANTS — v3
-   10 themes. 2 are anticipatory (WAIT stocks).
-   Min 5, max 10 stocks per portfolio.
-   Themes split by index tier, zone, sector, signal type.
+   PORTFOLIO ENGINE CONSTANTS — v4
+   P01 = B1-OS + B2 exclusively (highest conviction)
+   P02-P09 shifted from previous. P10/P11 anticipatory.
+   Max 8 stocks everywhere. P01/P09 min 3, others min 5.
 ═══════════════════════════════════════════════════════ */
 
 // Pre-signal scoring — how close is a WAIT stock to triggering
 function preSignalScore(s) {
   if (s.type !== 'wait') return 0;
   let score = 0;
-  const smi  = s.smi  || 0;
-  const smiS = s.smiSig || 0;
-  const h9   = s.hma9  || 0;
-  const h10  = s.hma10 || 0;
-  const zone = s.bandZone || '';
-
-  // Pre-B1-OS: SMI deeply oversold, in buy zone — one bar from trigger
+  const smi = s.smi||0, smiS = s.smiSig||0;
+  const h9 = s.hma9||0, h10 = s.hma10||0;
+  const zone = s.bandZone||'';
   if (smi < -15 && (zone==='rej_lo'||zone==='below_va')) {
-    score += 40;
-    if (smi < -25) score += 20;
-    if (zone==='rej_lo') score += 15;
+    score += 40; if (smi<-25) score+=20; if (zone==='rej_lo') score+=15;
   }
-  // Pre-B2: HMA9 close to crossing HMA10 from below
   if (h9 < h10 && h10 > 0) {
-    const gap = (h10 - h9) / h10 * 100;
-    if (gap < 0.3) score += 50; // very close
-    else if (gap < 0.8) score += 30;
-    else if (gap < 1.5) score += 15;
+    const gap = (h10-h9)/h10*100;
+    if (gap<0.3) score+=50; else if (gap<0.8) score+=30; else if (gap<1.5) score+=15;
   }
-  // Pre-B1-MOM: SMI curling up from oversold
-  if (smi > -20 && smi < 0 && smiS < smi && (zone==='rej_lo'||zone==='below_va')) {
-    score += 25;
-  }
+  if (smi>-20 && smi<0 && smiS<smi && (zone==='rej_lo'||zone==='below_va')) score+=25;
   return Math.min(100, score);
 }
 
 const PE_THEMES = [
-  { id:'P01', name:'ALPHA BULL',
+  // P01 — B1-OS + B2 ONLY. Zero B3. Min 3 (can be small on quiet days).
+  { id:'P01', name:'B1-OS + B2 ELITE',
+    icon:'fas fa-star', iconBg:'rgba(220,38,38,0.15)', iconCol:'#dc2626',
+    desc:'ONLY B1-OS + B2 — highest edge oversold+crossover. No B3 ever.',
+    maxStocks:8, minStocks:3,
+    filter:(s)=>s.type==='buy'&&(s.signal==='B1-OS'||s.signal==='B2'),
+    sort:(a,b)=>{ const r={'B1-OS':2,'B2':1}; const ar=r[a.signal]||0,br=r[b.signal]||0; return br!==ar?br-ar:b.score-a.score; }},
+
+  // P02 — Top scores, all buy signals
+  { id:'P02', name:'ALPHA BULL',
     icon:'fas fa-crown', iconBg:'rgba(217,119,6,0.15)', iconCol:'#d97706',
-    desc:'Top 10 highest scoring buy signals today',
+    desc:'Top 8 highest scoring buy signals today',
+    maxStocks:8, minStocks:5,
     filter:(s)=>s.type==='buy',
     sort:(a,b)=>b.score-a.score },
 
-  { id:'P02', name:'NIFTY 50 LEADERS',
+  // P03 — Large cap NIFTY 50
+  { id:'P03', name:'NIFTY 50 LEADERS',
     icon:'fas fa-building-columns', iconBg:'rgba(99,102,241,0.12)', iconCol:'#6366f1',
-    desc:'Large cap NIFTY 50 stocks only — lower risk, high liquidity',
-    filter:(s)=>s.type==='buy' &&
-      (s.index||'').toUpperCase().includes('NIFTY 50') &&
-      !(s.index||'').toUpperCase().includes('SMALL') &&
-      !(s.index||'').toUpperCase().includes('MID') &&
+    desc:'Large cap NIFTY 50 only — lower risk, high liquidity',
+    maxStocks:8, minStocks:5,
+    filter:(s)=>s.type==='buy'&&
+      (s.index||'').toUpperCase().includes('NIFTY 50')&&
+      !(s.index||'').toUpperCase().includes('SMALL')&&
+      !(s.index||'').toUpperCase().includes('MID')&&
       !(s.index||'').toUpperCase().includes('NEXT'),
     sort:(a,b)=>b.score-a.score },
 
-  { id:'P03', name:'MIDCAP MOMENTUM',
+  // P04 — Midcap + Smallcap combined (enough stocks daily)
+  { id:'P04', name:'MID + SMALL MIX',
     icon:'fas fa-chart-line', iconBg:'rgba(5,150,105,0.12)', iconCol:'#059669',
-    desc:'NIFTY MIDCAP 150 — mid-tier growth with momentum',
-    filter:(s)=>s.type==='buy' && (s.index||'').toUpperCase().includes('MIDCAP'),
+    desc:'NIFTY MIDCAP 150 + SMALLCAP 250 — growth tier combined',
+    maxStocks:8, minStocks:5,
+    filter:(s)=>s.type==='buy'&&
+      ((s.index||'').toUpperCase().includes('MIDCAP')||(s.index||'').toUpperCase().includes('SMALL')),
     sort:(a,b)=>b.score-a.score },
 
-  { id:'P04', name:'SMALLCAP ALPHA',
-    icon:'fas fa-seedling', iconBg:'rgba(16,185,129,0.10)', iconCol:'#10b981',
-    desc:'NIFTY SMALLCAP 250 — high beta, high return potential',
-    filter:(s)=>s.type==='buy' && (s.index||'').toUpperCase().includes('SMALL'),
-    sort:(a,b)=>b.score-a.score },
-
+  // P05 — Sector leaders (top 2 per top 4 sectors = max 8)
   { id:'P05', name:'SECTOR LEADERS',
     icon:'fas fa-fire', iconBg:'rgba(234,88,12,0.12)', iconCol:'#ea580c',
-    desc:'Top 2 stocks from each of top 5 strongest sectors today',
+    desc:'Top 2 stocks from each of top 4 strongest sectors today',
+    maxStocks:8, minStocks:5,
     filter:(s)=>s.type==='buy',
     sort:(a,b)=>b.score-a.score, sectorMode:true },
 
+  // P06 — REJ zone + Below VA mean reversion
   { id:'P06', name:'REJ & OVERSOLD',
     icon:'fas fa-crosshairs', iconBg:'rgba(129,140,248,0.12)', iconCol:'#818cf8',
-    desc:'REJ↓ zone + Below VA — best mean reversion entries',
-    filter:(s)=>s.type==='buy' && (s.bandZone==='rej_lo'||s.bandZone==='below_va'),
+    desc:'REJ↓ + Below VA zones — best mean reversion entries',
+    maxStocks:8, minStocks:5,
+    filter:(s)=>s.type==='buy'&&(s.bandZone==='rej_lo'||s.bandZone==='below_va'),
     sort:(a,b)=>b.score-a.score },
 
+  // P07 — Diversified, 1 per sector
   { id:'P07', name:'DIVERSIFIED INDIA',
     icon:'fas fa-globe', iconBg:'rgba(217,119,6,0.10)', iconCol:'#d97706',
-    desc:'Best 1 stock from each of 8+ different sectors',
+    desc:'Best 1 stock from each of 8 different sectors',
+    maxStocks:8, minStocks:5,
     filter:(s)=>s.type==='buy',
     sort:(a,b)=>b.score-a.score, onePerSector:true },
 
-  { id:'P08', name:'STRONG BUY ONLY',
-    icon:'fas fa-bolt', iconBg:'rgba(220,38,38,0.10)', iconCol:'#dc2626',
-    desc:'ONLY B1-OS, B1-MOM, B2 — no B3. Skipped if fewer than 5 qualify.',
-    filter:(s)=>s.type==='buy' && (s.signal==='B1-OS'||s.signal==='B1-MOM'||s.signal==='B2'),
-    sort:(a,b)=>{
-      // B1-OS first (highest edge), then B2, then B1-MOM, then score
-      const r={'B1-OS':3,'B2':2,'B1-MOM':1};
-      const ar=r[a.signal]||0, br=r[b.signal]||0;
-      return br!==ar ? br-ar : b.score-a.score;
-    }},
-
-  // ── ANTICIPATORY PORTFOLIO 1 — Pre-B1/B2 setups ──
-  { id:'P09', name:'PRE-SIGNAL WATCH',
+  // P08 — PRE-B2-WIDE: HMA gap 0.5-1.5% — statistically strongest signal
+  { id:'P08', name:'PRE-B2 WATCH',
     icon:'fas fa-eye', iconBg:'rgba(99,102,241,0.12)', iconCol:'#6366f1',
-    desc:'WAIT stocks near B1-OS/B2 trigger — setup complete, awaiting confirmation',
-    isAnticipatory: true,
-    filter:(s)=>s.type==='wait' && preSignalScore(s) >= 25,
-    sort:(a,b)=>preSignalScore(b)-preSignalScore(a) },
+    desc:'HMA gap 0.5-1.5% from crossover — 58.7% win rate, best EV signal',
+    maxStocks:8, minStocks:5, isAnticipatory:true,
+    filter:(s)=>s.type==='wait'&&s.hma9&&s.hma10&&
+      s.hma9<s.hma10&&
+      ((s.hma10-s.hma9)/s.hma10*100)>=0.5&&
+      ((s.hma10-s.hma9)/s.hma10*100)<1.5,
+    sort:(a,b)=>{ const gA=a.hma10>0?(a.hma10-a.hma9)/a.hma10*100:99,gB=b.hma10>0?(b.hma10-b.hma9)/b.hma10*100:99; return gA-gB; }},
 
-  // ── ANTICIPATORY PORTFOLIO 2 — HMA crossover imminent ──
-  { id:'P10', name:'HMA CROSSOVER WATCH',
+  // P09 — PRE-B1-OS: SMI < -25 in buy zone — 59% win rate
+  { id:'P09', name:'PRE-B1-OS WATCH',
     icon:'fas fa-chart-simple', iconBg:'rgba(5,150,105,0.10)', iconCol:'#059669',
-    desc:'WAIT stocks where HMA9 is within 1% of crossing HMA10 upward',
-    isAnticipatory: true,
-    filter:(s)=>s.type==='wait' && s.hma9 && s.hma10 &&
-                s.hma9 < s.hma10 &&
-                ((s.hma10 - s.hma9)/s.hma10*100) < 1.5,
-    sort:(a,b)=>{
-      // Closest to crossover first
-      const gapA = a.hma10>0 ? (a.hma10-a.hma9)/a.hma10*100 : 99;
-      const gapB = b.hma10>0 ? (b.hma10-b.hma9)/b.hma10*100 : 99;
-      return gapA - gapB;
-    }},
-];
-
-const PE_STORAGE_KEY = 'iravat_portfolios_v1';
+    desc:'SMI deeply oversold in REJ/BelVA zones — 59% win rate historically',
+    maxStocks:8, minStocks:5, isAnticipatory:true,
+    filter:(s)=>s.type==='wait'&&(s.smi||0)<-25&&
+      (s.bandZone==='rej_lo'||s.bandZone==='below_va'),
+    sort:(a,b)=>(a.smi||0)-(b.smi||0) },  // most oversold first
+];const PE_STORAGE_KEY = 'iravat_portfolios_v1';
 const PE_ARCHIVE_KEY = 'iravat_archive_v1';
 let pePortfolios = [];
 let peArchive    = [];
@@ -5871,9 +5879,11 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
     candidates = deduplicateSectors(candidates, 2);
   }
 
-  // Enforce min 5 / max 10
-  candidates = candidates.slice(0, 10);
-  if (candidates.length < 5) return null;  // ← min 5
+  // Enforce per-theme max/min
+  const maxS = theme.maxStocks || 8;
+  const minS = theme.minStocks || 5;
+  candidates = candidates.slice(0, maxS);
+  if (candidates.length < minS) return null;
 
   const today = new Date();
   const dissolve = new Date(today);
@@ -5891,6 +5901,13 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
     const wgt = wr / totalWR;
     const sz  = Math.max(Math.round((capitalPerPf*wgt)/100)*100, 5000);
     const psc = isAntic ? preSignalScore(c) : null;
+
+    // Read TP/SL from dropdown
+    const tpslVal = (document.getElementById('pe_tpsl')||{}).value || '1.5_3.0';
+    const [tpPct, slPct] = tpslVal.split('_').map(Number);
+    const tp = +(c.price*(1+tpPct/100)).toFixed(2);
+    const sl = +(c.price*(1-slPct/100)).toFixed(2);
+
     return {
       symbol:c.symbol, sector:c.sector||'N/A', index:c.index||'N/A',
       signal: isAntic ? ('PRE-'+(
@@ -5899,8 +5916,7 @@ function buildPortfolio(theme, minScore, capitalPerPf, sectorRanking) {
       )) : c.signal,
       zone:c.bandZone, score:isAntic?psc:c.score, winRate:wr,
       entryPrice:c.price, kellySize:sz,
-      tp:c.takeProfit||+(c.price*1.02).toFixed(2),
-      sl:c.stopLoss||+(c.price*0.96).toFixed(2),
+      tp, sl, tpPct, slPct,
       status:'open', dailyPnl:[null,null,null,null,null],
       currentPrice:c.price, entryDate:today.toISOString().slice(0,10),
       isAnticipatory: isAntic,
@@ -5972,32 +5988,74 @@ function generatePortfolios() {
   }
 }
 
+/* ═══════════════════════════════════════════════════════
+   REGIME GATE — reads regimeData from signal scanner
+═══════════════════════════════════════════════════════ */
+function getPortfolioRegimeStatus() {
+  if (!Object.keys(regimeData||{}).length)
+    return { status:'unknown', kelly:1.0,
+      label:'No regime data — run Signal Scanner first',
+      color:'var(--text3)', bg:'rgba(107,114,128,0.07)', border:'var(--border)' };
+
+  const keys = Object.keys(regimeData);
+  let bullC=0, bearC=0, cautC=0;
+  keys.forEach(k=>{
+    const r=regimeData[k];
+    if(r.regime==='bull') bullC++;
+    else if(r.regime==='bear') bearC++;
+    else cautC++;
+  });
+  const n=keys.length;
+
+  if (bearC===n)
+    return { status:'bear', kelly:0.25,
+      label:'🔴 BEAR REGIME — All indices bearish. Kelly cut to 25%. Trade ONLY B1-OS + B2 at REJ zones.',
+      color:'var(--bear)', bg:'rgba(220,38,38,0.07)', border:'rgba(220,38,38,0.3)' };
+  if (bearC>n/2)
+    return { status:'mostly_bear', kelly:0.5,
+      label:'🟠 MOSTLY BEAR — Majority indices bearish. Kelly at 50%. Highest conviction only.',
+      color:'var(--exit)', bg:'rgba(234,88,12,0.07)', border:'rgba(234,88,12,0.3)' };
+  if (bullC>0 && bearC>0)
+    return { status:'mixed', kelly:0.75,
+      label:'⚠️ MIXED REGIME — Indices disagree. Kelly at 75%. Prefer B1-OS + B2 at REJ. Avoid B3.',
+      color:'var(--amber)', bg:'rgba(217,119,6,0.07)', border:'rgba(217,119,6,0.3)' };
+  if (cautC===n)
+    return { status:'caution', kelly:0.75,
+      label:'⚠️ CAUTION — All indices in caution. Kelly at 75%.',
+      color:'var(--amber)', bg:'rgba(217,119,6,0.07)', border:'rgba(217,119,6,0.3)' };
+  return { status:'bull', kelly:1.0,
+    label:'✅ FULL BULL — All indices bullish. Full Kelly. All signal types valid.',
+    color:'var(--bull)', bg:'rgba(5,150,105,0.07)', border:'rgba(5,150,105,0.3)' };
+}
+
 function _doGenerate(minScore, capitalPF, silent) {
   checkDissolutions();
   const sectorRank = rankSectors();
   const today = new Date().toISOString().slice(0,10);
+  const regime = getPortfolioRegimeStatus();
+  const adjCapital = Math.round(capitalPF * regime.kelly);
+
+  if (!silent && regime.status==='bear') {
+    toast('⚠️ BEAR REGIME: Kelly reduced to 25%. Only highest conviction trades.', 'warn');
+  }
 
   let built=0, skipped=[];
   PE_THEMES.forEach(theme=>{
     const exists = pePortfolios.find(p=>
-      p.themeId===theme.id &&
-      p.generatedDate===today &&
-      p.status==='active' &&
-      p.stocks && p.stocks.length>0
+      p.themeId===theme.id && p.generatedDate===today &&
+      p.status==='active' && p.stocks && p.stocks.length>0
     );
     if (exists) return;
     pePortfolios = pePortfolios.filter(p=>
-      !(p.themeId===theme.id && p.generatedDate===today && (!p.stocks || p.stocks.length===0))
+      !(p.themeId===theme.id && p.generatedDate===today && (!p.stocks||p.stocks.length===0))
     );
-    const pf = buildPortfolio(theme, minScore, capitalPF, sectorRank);
-    if (pf) { pePortfolios.push(pf); built++; }
+    const pf = buildPortfolio(theme, minScore, adjCapital, sectorRank);
+    if (pf) { pf.regime=regime.status; pf.regimeKelly=regime.kelly; pePortfolios.push(pf); built++; }
     else skipped.push(theme.name);
   });
-  if (built > 0) { peSave(); updateTabBadges(); }
-  if (!silent && built > 0) renderPortfolioPage();
-  if (!silent && skipped.length) {
-    toast(`Skipped (insufficient signals): ${skipped.join(', ')}`, 'warn');
-  }
+  if (built>0) { peSave(); updateTabBadges(); }
+  if (!silent && built>0) renderPortfolioPage();
+  if (!silent && skipped.length) toast('Skipped: '+skipped.join(', '), 'warn');
   return built;
 }
 
@@ -6013,8 +6071,12 @@ function updatePortfolioPrices() {
       if(!info||!info.rows.length)return;
       const last=info.rows[info.rows.length-1];
       st.currentPrice=last.cl;
-      const hi=last.hi,lo=last.lo;
-      const hitTP=hi>=st.tp, hitSL=lo<=st.sl;
+      const hi=last.hi, lo=last.lo;
+      // Use stored tpPct/slPct if available, else defaults
+      const tpMult = 1 + (st.tpPct||1.5)/100;
+      const slMult = 1 - (st.slPct||3.0)/100;
+      const hitTP=hi>=st.tp||hi>=st.entryPrice*tpMult;
+      const hitSL=lo<=st.sl||lo<=st.entryPrice*slMult;
       if(hitTP&&hitSL)st.status='sl';
       else if(hitTP)st.status='tp';
       else if(hitSL)st.status='sl';
@@ -6076,6 +6138,81 @@ function clearArchive() {
   toast('Archive cleared','info');
 }
 
+/* ═══════════════════════════════════════════════════════
+   CSV EXPORT — Portfolio batch for backtesting
+═══════════════════════════════════════════════════════ */
+function exportPortfolioCSV(batchDate) {
+  // Export all portfolios from a specific generation date
+  const batch = pePortfolios.filter(p =>
+    p.status==='active' && p.generatedDate===batchDate
+  );
+  if (!batch.length) { toast('No portfolios found for this date','warn'); return; }
+
+  // Holdings CSV
+  const holdingRows = ['Portfolio,Theme,GeneratedDate,CycleLabel,Symbol,Signal,Zone,Score,EntryPrice,TP,SL,KellySize,WinRate,Sector,Index,IsAnticipatory'];
+  batch.forEach(pf => {
+    pf.stocks.forEach(st => {
+      holdingRows.push([
+        pf.id, pf.themeName, pf.generatedDate, pf.cycleLabel||'',
+        st.symbol, st.signal, st.zone||'', st.score||0,
+        st.entryPrice, st.tp, st.sl, st.kellySize, st.winRate||0,
+        st.sector, st.index, pf.isAnticipatory?'YES':'NO'
+      ].join(','));
+    });
+  });
+
+  // Tracking CSV (daily P&L updates)
+  const trackRows = ['Portfolio,Theme,Symbol,Day,Date,EntryPrice,CurrentPrice,DayReturn,CumulativeReturn,Status'];
+  batch.forEach(pf => {
+    pf.stocks.forEach(st => {
+      const cumRet = ((st.currentPrice - st.entryPrice)/st.entryPrice*100).toFixed(2);
+      trackRows.push([
+        pf.id, pf.themeName, st.symbol, pf.day, pf.lastUpdated,
+        st.entryPrice, st.currentPrice, cumRet, cumRet, st.status
+      ].join(','));
+    });
+  });
+
+  // Download holdings
+  const hBlob = new Blob([holdingRows.join('\n')], {type:'text/csv'});
+  const hA = document.createElement('a');
+  hA.href = URL.createObjectURL(hBlob);
+  hA.download = `iravat_portfolios_${batchDate}.csv`;
+  hA.click();
+
+  // Small delay then download tracking
+  setTimeout(() => {
+    const tBlob = new Blob([trackRows.join('\n')], {type:'text/csv'});
+    const tA = document.createElement('a');
+    tA.href = URL.createObjectURL(tBlob);
+    tA.download = `iravat_tracking_${batchDate}.csv`;
+    tA.click();
+    toast(`Exported ${batch.length} portfolios → 2 CSV files for backtesting`, 'ok');
+  }, 500);
+}
+
+function exportAllActiveCSV() {
+  // Combine all active portfolios into one CSV
+  const rows = ['Portfolio,Theme,GeneratedDate,CycleLabel,Day,Symbol,Signal,Zone,Score,EntryPrice,TP,SL,KellySize,WinRate,Return%,Status,Sector,Index'];
+  pePortfolios.filter(p=>p.status==='active').forEach(pf => {
+    pf.stocks.forEach(st => {
+      const ret = ((st.currentPrice-st.entryPrice)/st.entryPrice*100).toFixed(2);
+      rows.push([
+        pf.id, pf.themeName, pf.generatedDate, pf.cycleLabel||'', pf.day,
+        st.symbol, st.signal, st.zone||'', st.score||0,
+        st.entryPrice, st.tp, st.sl, st.kellySize, st.winRate||0,
+        ret, st.status, st.sector, st.index
+      ].join(','));
+    });
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `iravat_all_portfolios_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast(`Exported all active portfolios → CSV`, 'ok');
+}
+
 function renderPortfolioPage() {
   checkDissolutions();
   const active=pePortfolios.filter(p=>p.status==='active');
@@ -6097,6 +6234,24 @@ function renderPortfolioPage() {
   }
 
   renderSectorStrip();
+
+  // Regime banner
+  const banner = document.getElementById('peRegimeBanner');
+  if (banner) {
+    const reg = getPortfolioRegimeStatus();
+    banner.style.display = 'block';
+    banner.style.background = reg.bg;
+    banner.style.borderColor = reg.border;
+    banner.style.color = reg.color;
+    const kellyPct = Math.round(reg.kelly*100);
+    banner.innerHTML = `<i class="fas fa-satellite-dish" style="margin-right:8px;"></i>
+      <strong>REGIME:</strong> ${reg.label}
+      <span style="margin-left:16px;padding:2px 8px;border-radius:8px;
+        background:${reg.bg};border:1px solid ${reg.border};font-weight:700;">
+        Kelly: ${kellyPct}%
+      </span>`;
+  }
+
   const grid=document.getElementById('peGrid');
   const empty=document.getElementById('peEmpty');
   if(!active.length){
@@ -6136,6 +6291,12 @@ function renderPortfolioPage() {
           Avg ${batchReturn>=0?'+':''}${batchReturn.toFixed(1)}%
         </span>
         <span style="font-size:10px;color:var(--text3)">${batch.length} portfolios · Dissolves ${batch[0].dissolveDate}</span>
+        <button onclick="exportPortfolioCSV('${date}')" 
+                style="padding:3px 10px;font-size:9px;font-family:var(--mono);font-weight:700;
+                       background:rgba(5,150,105,0.09);color:var(--bull);border:1px solid rgba(5,150,105,0.25);
+                       border-radius:4px;cursor:pointer;white-space:nowrap;">
+          <i class="fas fa-download"></i> Export CSV
+        </button>
       </div>`;
 
     return header + batch.map(pf=>renderPfCard(pf)).join('');
@@ -6243,8 +6404,12 @@ function renderPfCard(pf) {
         </div>
         <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px">
           Expected: <span style="color:var(--amber);font-weight:700">${expRet>0?'+':''}${expRet}%</span>
+          ${pf.stocks[0]?` · TP+${pf.stocks[0].tpPct||1.5}% / SL-${pf.stocks[0].slPct||3.0}%`:''}
         </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:1px">Dissolves ${pf.dissolveDate}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:1px">
+          Dissolves ${pf.dissolveDate}
+          ${pf.regimeKelly&&pf.regimeKelly<1?` · <span style="color:var(--amber)">Kelly ${Math.round(pf.regimeKelly*100)}%</span>`:''}
+        </div>
       </div>
     </div>
     <div class="pf-stocks">
