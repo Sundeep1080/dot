@@ -225,9 +225,6 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
 .t-info{background:var(--amber-g);color:var(--amber);border-color:rgba(217,119,6,.3)}
 .t-kite{background:var(--kite-g);color:var(--kite);border-color:rgba(99,102,241,.3)}
 
-.b-aligned{background:var(--bull-g);color:var(--bull);border-color:rgba(5,150,105,.3)}
-.b-contrarian{background:var(--bear-g);color:var(--bear);border-color:rgba(220,38,38,.3)}
-.b-neutral{background:var(--amber-g);color:var(--amber);border-color:rgba(217,119,6,.3)}
 /* MISC */
 .divider{height:1px;background:var(--border);margin:8px 0}
 .empty{text-align:center;color:var(--text3);font-family:var(--mono);font-size:10px;padding:24px}
@@ -319,8 +316,6 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
 
 <!-- PAGE 1: SCANNER -->
 <div class="page active" id="page-scanner">
-  <!-- REGIME CALLOUT BANNER — always visible after data load -->
-  <div id="top25RegimeCallout" style="display:none;background:var(--bg2);border:1px solid var(--border);border-left:4px solid var(--amber);border-radius:var(--r);padding:8px 14px;margin-bottom:5px;box-shadow:var(--sh-sm)"></div>
   <div class="top25-grid" id="top25Grid" style="display:none">
     <div class="top25-panel">
       <div class="top25-hdr bull">
@@ -331,7 +326,7 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
           <button class="btn btn-d" style="font-size:8px;padding:2px 7px" onclick="sortTop25('buy','rr')">R:R</button>
         </div>
       </div>
-      <div class="tw"><table id="top25BuyTbl"><thead><tr><th>#</th><th>Symbol</th><th>Sig</th><th>Score</th><th>Weekly</th><th>IDX Align</th><th id="thTop25BuyZone">100d Zone</th><th>HVP</th><th>CMP</th><th>TP +2.0%</th><th>SL -3.5%</th><th>R:R</th><th>HistWR%</th><th>Kelly%</th><th>250d</th></tr></thead><tbody id="top25BuyBody"></tbody></table></div>
+      <div class="tw"><table id="top25BuyTbl"><thead><tr><th>#</th><th>Symbol</th><th>Sig</th><th>Score</th><th>Concord</th><th id="thTop25BuyZone">100d Zone</th><th>HVP</th><th>CMP</th><th>TP +2.0%</th><th>SL -3.5%</th><th>R:R</th><th>HistWR%</th><th>Kelly%</th><th>250d</th></tr></thead><tbody id="top25BuyBody"></tbody></table></div>
     </div>
     <div class="top25-panel">
       <div class="top25-hdr bear">
@@ -342,7 +337,7 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
           <button class="btn btn-d" style="font-size:8px;padding:2px 7px" onclick="sortTop25('sell','rr')">R:R</button>
         </div>
       </div>
-      <div class="tw"><table id="top25SellTbl"><thead><tr><th>#</th><th>Symbol</th><th>Sig</th><th>Score</th><th>Weekly</th><th>IDX Align</th><th id="thTop25SellZone">100d Zone</th><th>HVP</th><th>CMP</th><th>TP +2.0%</th><th>SL -3.5%</th><th>R:R</th><th>HistWR%</th><th>Kelly%</th><th>250d</th></tr></thead><tbody id="top25SellBody"></tbody></table></div>
+      <div class="tw"><table id="top25SellTbl"><thead><tr><th>#</th><th>Symbol</th><th>Sig</th><th>Score</th><th>Concord</th><th id="thTop25SellZone">100d Zone</th><th>HVP</th><th>CMP</th><th>TP +2.0%</th><th>SL -3.5%</th><th>R:R</th><th>HistWR%</th><th>Kelly%</th><th>250d</th></tr></thead><tbody id="top25SellBody"></tbody></table></div>
     </div>
   </div>
   <div class="insights-strip" id="insightStrip" style="display:none"></div>
@@ -352,6 +347,7 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
       <select class="fi" id="fSig" onchange="applyFilters()"><option value="">All Signals</option><option>B1-OS</option><option>B1-MOM</option><option>B2</option><option>B3</option><option>S1-OB</option><option>S1-MOM</option><option>S2</option><option>S3</option></select>
       <select class="fi" id="fSec" onchange="applyFilters()"><option value="">All Sectors</option></select>
       <select class="fi" id="fIdx" onchange="applyFilters()"><option value="">All Indices</option></select>
+      <select class="fi" id="fAlign" onchange="applyFilters()" title="Regime alignment"><option value="">All Alignments</option><option value="aligned">WITH Mkt</option><option value="partial">Partial</option><option value="contrarian">Contrarian</option><option value="neutral">Neutral</option></select>
       <select class="fi" id="fBand" onchange="applyFilters()"><option value="">All Zones</option><option value="rej_lo">REJ Lo</option><option value="below_va">Below VA</option><option value="va">VA</option><option value="above_va">Above VA</option><option value="rej_hi">REJ Hi</option></select>
       <input class="fi" id="fSearch" placeholder="Search symbol…" oninput="applyFilters()" style="width:130px">
       <select class="fi" id="selMinDays" title="Minimum trading days required per stock" style="min-width:90px" onchange="updateLookbackHeaders()">
@@ -434,11 +430,11 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
     <button class="i-tab" onclick="switchIntel('m3')">M3 Earnings</button>
     <button class="i-tab" onclick="switchIntel('m5')">M5 X-Sector</button>
     <button class="i-tab" onclick="switchIntel('m7')">M7 Ind Lab</button>
-    <button class="i-tab" onclick="switchIntel('m8')">M8 Regime X-Perf</button>
     <button class="i-tab" onclick="switchIntel('tpsl')">Adaptive TP/SL</button>
     <button class="i-tab" onclick="switchIntel('mb')">Multibagger</button>
     <button class="i-tab" onclick="switchIntel('sectors')">Sectors</button>
     <button class="i-tab" onclick="switchIntel('wrref')">WR Reference</button>
+    <button class="i-tab" onclick="switchIntel('regimexperf')">📊 Regime vs Signal</button>
     <button class="i-tab" onclick="switchIntel('ledger')">Ledger</button>
     <button class="i-tab" onclick="switchIntel('retcorr')">Return Corr</button>
   </div>
@@ -527,38 +523,6 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
     <div class="tw"><table><thead><tr><th>Rank</th><th>Indicator</th><th>WR%</th><th>Avg P&L%</th><th>Score</th><th>Trades</th></tr></thead><tbody id="m7Body"></tbody></table></div>
   </div>
 
-  <!-- M8 REGIME CROSS-PERFORMANCE -->
-  <div class="i-panel card" id="intel-m8" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
-    <div class="ct" style="border-left:4px solid var(--amber)"><i class="fas fa-chart-bar"></i> M8 Regime Cross-Performance — Do Buy Signals Win in Bear Markets?</div>
-    <div style="font-family:var(--mono);font-size:8px;color:var(--text2);margin-bottom:10px;padding:6px 8px;background:var(--amber-g);border:1px solid rgba(217,119,6,.2);border-radius:4px">
-      <strong class="c-amb">How to read this:</strong> Each cell shows Win Rate % and trade count from your actual ledger. Breakeven WR = 63.6% (TP=2.0%, SL=3.5%).
-      <span class="c-bull"> Green</span> = above breakeven (profitable). <span class="c-bear"> Red</span> = below breakeven (losing). 
-      This answers: "Should I take buy signals when NSEI is bearish?" — with YOUR real trade history, not theory.
-    </div>
-    <div id="m8Summary" style="margin-bottom:12px"></div>
-    <div class="grid2" style="gap:12px">
-      <div>
-        <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--bright);margin-bottom:6px">📊 BUY SIGNALS by Index Regime at Entry</div>
-        <div class="tw"><table><thead><tr>
-          <th>Regime at Entry</th><th>Trades</th><th>Win Rate</th><th>Avg P&L%</th><th>vs Breakeven</th><th>Verdict</th>
-        </tr></thead><tbody id="m8BuyBody"></tbody></table></div>
-      </div>
-      <div>
-        <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--bright);margin-bottom:6px">📊 SELL SIGNALS by Index Regime at Entry</div>
-        <div class="tw"><table><thead><tr>
-          <th>Regime at Entry</th><th>Trades</th><th>Win Rate</th><th>Avg P&L%</th><th>vs Breakeven</th><th>Verdict</th>
-        </tr></thead><tbody id="m8SellBody"></tbody></table></div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--bright);margin-bottom:6px">🔬 SIGNAL-TYPE × REGIME Breakdown (min 3 trades shown)</div>
-    <div class="tw" style="max-height:320px;overflow-y:auto"><table><thead><tr>
-      <th>Signal</th><th>Regime</th><th>Trades</th><th>WR%</th><th>Avg P&L%</th><th>EV/Trade</th><th>Alignment</th><th>Insight</th>
-    </tr></thead><tbody id="m8DetailBody"></tbody></table></div>
-    <div class="divider"></div>
-    <div id="m8Contrarian" style="font-family:var(--mono);font-size:9px"></div>
-  </div>
-
   <!-- ADAPTIVE TP/SL -->
   <div class="i-panel card" id="intel-tpsl" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
     <div class="ct"><i class="fas fa-crosshairs"></i> Adaptive TP/SL — Per-Stock Learned Multipliers</div>
@@ -577,6 +541,9 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
     <div id="sectorContent"></div>
   </div>
 
+
+  <!-- REGIME CROSS-PERF -->
+  <div class="i-panel card" id="intel-regimexperf" style="border-radius:0 0 var(--r-lg) var(--r-lg)"></div>
 
   <!-- WR REFERENCE -->
   <div class="i-panel card" id="intel-wrref" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
@@ -1553,38 +1520,6 @@ async function processAll(bySymbol) {
     const earnProx  = checkEarningProximity(sym, rows[n].date, 15);
     const mbSc      = computeMBScore(sym, bySymbol);
 
-      // ── Regime alignment: signal direction vs ALL major indices ──
-    // weeklyAligned = stock's own HMA weekly trend vs signal (unchanged)
-    // regime_alignment = consensus of all loaded major indices vs signal direction
-    const isBuySig = signal.startsWith('B');
-
-    // Build per-index alignment detail — shows each index separately
-    const indexRegimeDetail = {};
-    Object.keys(regimeData).forEach(idxSym => {
-      const t = regimeData[idxSym].trend; // 'bull'|'bear'|'flat'
-      let a;
-      if (t === 'bull')      a = isBuySig ? 'aligned' : 'contrarian';
-      else if (t === 'bear') a = isBuySig ? 'contrarian' : 'aligned';
-      else                   a = 'neutral';
-      indexRegimeDetail[idxSym] = { trend: t, alignment: a };
-    });
-
-    // Consensus: count bull vs bear across all indices
-    const idxVals = Object.values(indexRegimeDetail);
-    const bullCount = idxVals.filter(v => v.trend === 'bull').length;
-    const bearCount = idxVals.filter(v => v.trend === 'bear').length;
-    const total = idxVals.length || 1;
-    // Majority rules; ties → neutral
-    let consensusTrend;
-    if (bullCount / total >= 0.6)      consensusTrend = 'bull';
-    else if (bearCount / total >= 0.6) consensusTrend = 'bear';
-    else                               consensusTrend = 'mixed';
-
-    let regime_alignment;
-    if (consensusTrend === 'bull')      regime_alignment = isBuySig ? 'aligned' : 'contrarian';
-    else if (consensusTrend === 'bear') regime_alignment = isBuySig ? 'contrarian' : 'aligned';
-    else                                regime_alignment = 'neutral'; // mixed / flat
-
     const sigObj = {
       symbol:sym, sector:info.sector, index:info.index,
       signal, score, band_zone:bandZone,
@@ -1604,9 +1539,26 @@ async function processAll(bySymbol) {
       ret_250:ret250,
       // IRAVAT extras — used for display
       weeklyTrend, barsAgo, weeklyAligned:(signal.startsWith('B')&&weeklyTrend==='bull')||(signal.startsWith('S')&&weeklyTrend==='bear'),
-      regime_alignment,
-      indexRegimeDetail,   // per-index breakdown: {NSEI:{trend,alignment}, NSEBANK:{...}, ...}
-      consensusTrend,      // 'bull'|'bear'|'mixed' — majority of all loaded indices
+      regime_alignment:(function(){
+        var isBuy=signal.startsWith('B');
+        var fullBull=overallRegime==='full';
+        var fullBear=overallRegime==='bear';
+        if(fullBull) return isBuy?'aligned':'contrarian';
+        if(fullBear) return isBuy?'contrarian':'aligned';
+        var nseiR=regimeData['NSEI']||regimeData['CRSLDX']||{trend:'flat'};
+        if(nseiR.trend==='bull') return isBuy?'partial':'contrarian';
+        if(nseiR.trend==='bear') return isBuy?'contrarian':'partial';
+        return 'neutral';
+      })(),
+      index_alignments:(function(){
+        var isBuy=signal.startsWith('B'); var res={};
+        var ks=Object.keys(regimeData);
+        for(var ki=0;ki<ks.length;ki++){
+          var k=ks[ki],rd=regimeData[k];
+          res[k]=(isBuy&&rd.trend==='bull')||(!isBuy&&rd.trend==='bear')?'with':rd.trend==='flat'?'neutral':'against';
+        }
+        return res;
+      })(),
     };
     allSignals.push(sigObj);
 
@@ -1625,6 +1577,8 @@ async function processAll(bySymbol) {
         prev_signal:prevSig,best_indicator:globalBestInd,
         avg_bef_exit:null
       };
+      if(!rec.regime_at_entry) rec.regime_at_entry = rec.regime_alignment||'neutral';
+      if(!rec.index_alignments_at_entry) rec.index_alignments_at_entry = rec.index_alignments||{};
       ledger.push(rec);
       newAdded++;
     }
@@ -1970,14 +1924,50 @@ function createDailyPortfolios() {
   if(existing){toast('Portfolio for '+dayInfo.dayName+' '+dayInfo.createdDate+' already exists','info');renderPage2();return}
 
   // Filter + sort by score
-  // SAME selection as Top 25 — the 25 stocks you see ARE the portfolio
-  const buys = selectTop25(allSignals, 'buy');
-  const sells = selectTop25(allSignals, 'sell');
+  // Use same unified selection as Top 25 display
+  // The 25 stocks you see ARE the portfolio — identical selection
+  var buys=selectTop25(allSignals,'buy');
+  var sells=selectTop25(allSignals,'sell');
 
+  // ── Zone quality filter + sector diversification ──
+  // Data shows: below_va and va are the only profitable zones for buys
+  // rej_lo appears oversold but has 51-57% WR — negative EV
+  function zoneQuality(s) {
+    const isBuy=s.signal.startsWith('B');
+    if(isBuy) {
+      if(s.band_60==='below_va') return 3;  // best
+      if(s.band_60==='va')       return 2;  // good
+      if(s.band_60==='rej_lo')   return 1;  // risky — only if score very high
+      return 0;
+    } else {
+      if(s.band_60==='rej_hi')   return 3;
+      if(s.band_60==='above_va') return 2;
+      if(s.band_60==='va')       return 2;
+      return 1;
+    }
+  }
+  function diversify(list, maxPerSector, maxTotal) {
+    // Sort: zone quality first, then score
+    const sorted=list.slice().sort((a,b)=>{
+      const zq=zoneQuality(b)-zoneQuality(a);
+      if(zq!==0) return zq;
+      return b.score-a.score;
+    });
+    const sectorCt={};
+    const result=[];
+    for(const s of sorted){
+      const sc=s.sector||'Other';
+      if(!sectorCt[sc])sectorCt[sc]=0;
+      if(sectorCt[sc]>=maxPerSector) continue;
+      sectorCt[sc]++;
+      result.push(s);
+      if(result.length>=maxTotal) break;
+    }
+    return result;
+  }
+  const buyList=diversify(buys, 3, 25);
+  const sellList=diversify(sells, 3, 25);
 
-  // buyList and sellList come from selectTop25 above
-  const buyList = buys;
-  const sellList = sells;
   if(buyList.length===0&&sellList.length===0){
     toast('No signals above score '+minScore+' (regime: '+overallRegime+'). Lower threshold or wait for better setups.','err');
     return;
@@ -2006,8 +1996,6 @@ function createDailyPortfolios() {
       symbol:s.symbol,sector:s.sector,signal:s.signal,score:s.score,
       cmp:s.cmp,tp:s.tp,sl:s.sl,rr:s.rr,kelly_pct:s.kelly_pct,
       band_zone:s.band_zone,hvp:s.hvp,
-      regime_alignment:s.regime_alignment||'neutral',
-      indexRegimeDetail:s.indexRegimeDetail||{},
       current_price:s.cmp,pnl_pct:0,pnl_amt:0,status:'open'
     })), capital);
     const stocks=sizedStocks.map(s=>Object.assign({},s,{qty:Math.max(1,Math.floor(s.position_size/s.cmp))}));
@@ -2017,8 +2005,12 @@ function createDailyPortfolios() {
       id:'BUY_'+dayInfo.createdDate,type:'buy',day:dayInfo.dayName,
       createdDate:dayInfo.createdDate,dissolveDate:dayInfo.dissolveDate,dissolveDay:dayInfo.dissolveDay,
       status:'active',capital,stocks,totalPnl:0,totalPnlPct:0,winCount:0,lossCount:0,
-      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,
-      selectionMethod:'Top25 EV+ unified',holdDays:4
+      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,holdDays:4,
+      alignmentSummary:(function(){
+        var c={aligned:0,partial:0,contrarian:0,neutral:0};
+        for(var i=0;i<stocks.length;i++){var a=stocks[i].regime_alignment||'neutral';if(c[a]!==undefined)c[a]++;}
+        return c;
+      })()
     });
     toast('BUY: '+buyList.length+' stocks across '+sectors.length+' sectors · '+dayInfo.dayName+' → dissolves '+dayInfo.dissolveDay,'ok');
   }
@@ -2028,8 +2020,6 @@ function createDailyPortfolios() {
       symbol:s.symbol,sector:s.sector,signal:s.signal,score:s.score,
       cmp:s.cmp,tp:s.tp,sl:s.sl,rr:s.rr,kelly_pct:s.kelly_pct,
       band_zone:s.band_zone,hvp:s.hvp,
-      regime_alignment:s.regime_alignment||'neutral',
-      indexRegimeDetail:s.indexRegimeDetail||{},
       current_price:s.cmp,pnl_pct:0,pnl_amt:0,status:'open',
       spread_type:s.signal==='S1-MOM'||s.signal==='S3'?'bear_put':'bear_call'
     })), capital);
@@ -2040,8 +2030,12 @@ function createDailyPortfolios() {
       id:'SELL_'+dayInfo.createdDate,type:'sell',day:dayInfo.dayName,
       createdDate:dayInfo.createdDate,dissolveDate:dayInfo.dissolveDate,dissolveDay:dayInfo.dissolveDay,
       status:'active',capital,stocks,totalPnl:0,totalPnlPct:0,winCount:0,lossCount:0,
-      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,
-      selectionMethod:'Top25 EV+ unified',holdDays:4
+      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,holdDays:4,
+      alignmentSummary:(function(){
+        var c={aligned:0,partial:0,contrarian:0,neutral:0};
+        for(var i=0;i<stocks.length;i++){var a=stocks[i].regime_alignment||'neutral';if(c[a]!==undefined)c[a]++;}
+        return c;
+      })()
     });
     toast('SELL: '+sellList.length+' stocks across '+sectors.length+' sectors → see Options tab','ok');
   }
@@ -2322,150 +2316,47 @@ function top25Sort(a, b, col) {
   return rb - ra;
 }
 
-
-// ─── UNIFIED SELECTION: same logic for Top 25 display AND daily portfolio ───
-// This ensures the 25 stocks you see are exactly the ones in your portfolio
+// ── selectTop25: unified selection for BOTH Top 25 display AND daily portfolio ──
+// These are the same 25 stocks — no divergence between display and portfolio
 function selectTop25(signals, type) {
-  // type = 'buy' or 'sell'
-  const isBuy = type === 'buy';
-  const regThr = getRegimeThreshold();
+  var isBuy = type === 'buy';
+  var regThr = getRegimeThreshold();
+  var alnScore = {aligned:3,partial:2,neutral:1,contrarian:0};
 
-  // Step 1: filter — must be EV-positive (is_good_combo) OR very high score
-  const qualified = signals.filter(function(s) {
+  // STEP 1: Filter — EV-positive or high-score override
+  // ALL regimes: always show 25 buy + 25 sell regardless of market direction
+  // Regime alignment is INFORMATIONAL — contrarians are included, just ranked lower
+  var qualified = signals.filter(function(s) {
     if(isBuy && !s.signal.startsWith('B')) return false;
     if(!isBuy && !s.signal.startsWith('S')) return false;
-    // EV-positive combo: always include
     if(s.is_good_combo) return true;
-    // High score override: include even if not a studied combo
-    if(s.score >= regThr + 10) return true;
-    // B1-OS and B1-MOM only if is_good_combo (their below_va WR is below breakeven)
-    if(s.signal === 'B1-MOM' || s.signal === 'B1-OS') return false;
-    // S1-OB only if is_good_combo
-    if(s.signal === 'S1-OB') return false;
-    // Others (B2, B3, S2, S3) need score >= regime threshold
+    // B1-MOM/B1-OS excluded unless is_good_combo (EV negative in most zones)
+    if(s.signal==='B1-MOM'||s.signal==='B1-OS'||s.signal==='S1-OB') return false;
+    // High score override
+    if(s.score >= regThr+10) return true;
     return s.score >= regThr;
   });
 
-  // Step 2: sort — EV+ combos first, then by score desc
-  qualified.sort(function(a, b) {
-    if(a.is_good_combo && !b.is_good_combo) return -1;
-    if(!a.is_good_combo && b.is_good_combo) return 1;
-    return b.score - a.score;
+  // STEP 2: Sort — EV+ first, then regime-aligned, then score
+  qualified.sort(function(a,b){
+    if(a.is_good_combo&&!b.is_good_combo) return -1;
+    if(!a.is_good_combo&&b.is_good_combo) return 1;
+    var aA=alnScore[a.regime_alignment]||1, bA=alnScore[b.regime_alignment]||1;
+    if(aA!==bA) return bA-aA;
+    return b.score-a.score;
   });
 
-  // Step 3: diversify — max 3 per sector, max 25 total
-  var sectorCt = {};
-  var result = [];
-  for(var i = 0; i < qualified.length; i++) {
-    var s = qualified[i];
-    var sec = s.sector || 'Other';
-    if(!sectorCt[sec]) sectorCt[sec] = 0;
-    if(sectorCt[sec] >= 3) continue;
-    sectorCt[sec]++;
+  // STEP 3: Max 3 per sector, max 25 total
+  var secCt={}, result=[];
+  for(var i=0;i<qualified.length;i++){
+    var s=qualified[i], sec=s.sector||'Other';
+    if(!secCt[sec]) secCt[sec]=0;
+    if(secCt[sec]>=3) continue;
+    secCt[sec]++;
     result.push(s);
-    if(result.length >= 25) break;
+    if(result.length>=25) break;
   }
   return result;
-}
-function regimeAlignBadge(alignment) {
-  if (alignment === 'aligned')    return '<span class="b b-aligned">🟢 WITH TREND</span>';
-  if (alignment === 'contrarian') return '<span class="b b-contrarian">🔴 CONTRARIAN</span>';
-  return '<span class="b b-neutral">🟡 NEUTRAL</span>';
-}
-
-function regimeAlignBadge(alignment, indexDetail) {
-  // Build tooltip text from per-index detail if available
-  let tip = '';
-  if (indexDetail && Object.keys(indexDetail).length) {
-    tip = Object.entries(indexDetail)
-      .map(([idx, d]) => `${idx}: ${d.trend.toUpperCase()} → ${d.alignment}`)
-      .join(' | ');
-  }
-  const tipAttr = tip ? ` title="${tip}"` : '';
-  if (alignment === 'aligned')    return `<span class="b b-aligned" style="cursor:help"${tipAttr}>🟢 WITH TREND</span>`;
-  if (alignment === 'contrarian') return `<span class="b b-contrarian" style="cursor:help"${tipAttr}>🔴 CONTRARIAN</span>`;
-  return `<span class="b b-neutral" style="cursor:help"${tipAttr}>🟡 NEUTRAL</span>`;
-}
-
-// ── Live callout banner above Top 25 tables ──
-// Answers: "Yes, Top 25 always shows. Here's the proof: NSEI=BULL yet X sells fired."
-function buildTop25RegimeCallout() {
-  const el = document.getElementById('top25RegimeCallout');
-  if (!el || !allSignals.length) return;
-
-  const allBuys  = allSignals.filter(s => s.signal.startsWith('B'));
-  const allSells = allSignals.filter(s => s.signal.startsWith('S'));
-
-  // Per-index regime summary
-  const idxKeys = Object.keys(regimeData);
-  const idxSummary = idxKeys.map(k => {
-    const t = regimeData[k].trend;
-    const cls = t === 'bull' ? 'c-bull' : t === 'bear' ? 'c-bear' : 'c-amb';
-    const arrow = t === 'bull' ? '▲' : t === 'bear' ? '▼' : '~';
-    return `<span style="font-family:var(--mono);font-size:8px"><strong>${k}</strong> <span class="${cls}">${t.toUpperCase()} ${arrow}</span></span>`;
-  }).join(' &nbsp;·&nbsp; ');
-
-  // Contrarian count: signals firing AGAINST consensus regime
-  const contrabuys  = allBuys.filter(s => s.regime_alignment === 'contrarian').length;
-  const contrasells = allSells.filter(s => s.regime_alignment === 'contrarian').length;
-  const alignedbuys  = allBuys.filter(s => s.regime_alignment === 'aligned').length;
-  const alignedsells = allSells.filter(s => s.regime_alignment === 'aligned').length;
-
-  // Contrarian ledger hit-rate (from ledger — does contrarian actually work?)
-  const ledger = loadLedger().filter(r => r.outcome === 'win' || r.outcome === 'loss');
-  const BREAKEVEN = 63.6;
-
-  function contraWR(dir) {
-    const isContra = r => {
-      const isBuy = r.signal && r.signal.startsWith('B');
-      return (isBuy && r.regime === 'bear') || (!isBuy && r.regime === 'bull');
-    };
-    const recs = ledger.filter(r => (dir === 'buy' ? r.signal && r.signal.startsWith('B') : r.signal && r.signal.startsWith('S')) && isContra(r));
-    if (recs.length < 3) return null;
-    const wins = recs.filter(r => r.outcome === 'win').length;
-    return { wr: Math.round(wins / recs.length * 100), n: recs.length };
-  }
-  const cbWR = contraWR('buy');
-  const csWR = contraWR('sell');
-
-  const cbStr = cbWR ? `<span class="${cbWR.wr >= BREAKEVEN ? 'c-bull' : 'c-bear'}">${cbWR.wr}% WR (${cbWR.n} trades)</span>` : '<span class="c-dim">accumulating…</span>';
-  const csStr = csWR ? `<span class="${csWR.wr >= BREAKEVEN ? 'c-bull' : 'c-bear'}">${csWR.wr}% WR (${csWR.n} trades)</span>` : '<span class="c-dim">accumulating…</span>';
-
-  // Overall consensus label
-  const bullIdxCount = idxKeys.filter(k => regimeData[k].trend === 'bull').length;
-  const bearIdxCount = idxKeys.filter(k => regimeData[k].trend === 'bear').length;
-  const consensusLabel = bullIdxCount === idxKeys.length ? '🟢 ALL BULL' :
-                         bearIdxCount === idxKeys.length ? '🔴 ALL BEAR' :
-                         bearIdxCount > bullIdxCount     ? '🔴 MOSTLY BEAR' :
-                         bullIdxCount > bearIdxCount     ? '🟢 MOSTLY BULL' : '🟡 MIXED';
-
-  el.style.display = 'block';
-  el.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:5px">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--bright)">
-          INDEX REGIME ${consensusLabel}
-        </span>
-        <span style="font-family:var(--mono);font-size:8px;color:var(--text3)">|</span>
-        ${idxSummary}
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:8px">
-        <span>📈 <strong class="c-bull">${allBuys.length} BUY signals</strong> fired today
-          — <span class="c-bull">${alignedbuys} with trend</span>, <span class="c-bear">${contrabuys} contrarian</span></span>
-        <span style="color:var(--text3)">|</span>
-        <span>📉 <strong class="c-bear">${allSells.length} SELL signals</strong> fired today
-          — <span class="c-bull">${alignedsells} with trend</span>, <span class="c-bear">${contrasells} contrarian</span></span>
-        <span style="color:var(--text3)">|</span>
-        <span style="color:var(--text2)">Top 25 always shows both sides regardless of regime ✅</span>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:8px;color:var(--text2)">
-        <span>Contrarian BUY performance (from ledger): ${cbStr}</span>
-        <span style="color:var(--text3)">|</span>
-        <span>Contrarian SELL performance (from ledger): ${csStr}</span>
-        <span style="color:var(--text3)">|</span>
-        <span class="c-dim">Breakeven: 63.6%</span>
-      </div>
-    </div>`;
 }
 
 function renderTop25() {
@@ -2478,12 +2369,11 @@ function renderTop25() {
       return top25Sort(a,b,col);
     });
   }
-  // Use unified selection — same stocks as daily portfolio
-  const buys = selectTop25(allSignals, 'buy');
-  const sells = selectTop25(allSignals, 'sell');
-  // Also re-sort by user's chosen column if not score
-  if(top25SortBuy !== 'score') buys.sort(function(a,b){return top25Sort(a,b,top25SortBuy)});
-  if(top25SortSell !== 'score') sells.sort(function(a,b){return top25Sort(a,b,top25SortSell)});
+  var buys=selectTop25(allSignals,'buy');
+  var sells=selectTop25(allSignals,'sell');
+  // Re-sort by user column if changed from default
+  if(top25SortBuy!=='score') buys.sort(function(a,b){return top25Sort(a,b,top25SortBuy);});
+  if(top25SortSell!=='score') sells.sort(function(a,b){return top25Sort(a,b,top25SortSell);});
 
   // Update header threshold hint
   ['Buy','Sell'].forEach(t=>{
@@ -2496,7 +2386,13 @@ function renderTop25() {
   });
   const row=(s,i)=>{
     const kStr=s.kelly_pct!==null?s.kelly_pct+'%':'—';
-    const goodFlag=s.is_good_combo?'<span class="b b-bull" style="font-size:7px">EV+</span> ':'';
+    const goodFlag=s.is_good_combo?'<span class="b b-bull" style="font-size:7px">EV+</span> '
+      :(s.signal==='B1-MOM'&&s.band_zone!=='rej_lo'?'<span class="b b-bear" style="font-size:7px">EV-</span> ':'');
+    var aln=s.regime_alignment||'neutral';
+    var alignBadge=aln==='aligned'?'<span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3);font-size:7px">WITH</span> '
+      :aln==='contrarian'?'<span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3);font-size:7px">CONTRA</span> '
+      :aln==='partial'?'<span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3);font-size:7px">PART</span> '
+      :'';
     const retStr=s.ret_250!==null?(s.ret_250>0?'+':'')+s.ret_250+'%':'—';
     const bz=bandZoneBadge(s.band_primary||s.band_100||s.band_60||s.band_zone);
     const scoreCls=s.score>=thr?'c-bull':s.score>=(thr-15)?'c-amb':'c-dim';
@@ -2504,15 +2400,13 @@ function renderTop25() {
     const histWR=s.wr_lookup!==null&&s.wr_lookup!==undefined?s.wr_lookup+'%':'—';
     const wrCls=s.wr_lookup>=75?'c-bull':s.wr_lookup>=68?'c-amb':'c-bear';
     const wkCls2=s.weeklyAligned?'b-bull':s.weeklyTrend==='bear'?'b-bear':'b-dim';
-    const weeklyBadge=`<span class="b ${wkCls2}">${(s.weeklyTrend||'neut').toUpperCase()}</span>`;
-    const alignBadge=regimeAlignBadge(s.regime_alignment||'neutral', s.indexRegimeDetail||{});
+    const concBadge2=`<span class="b ${wkCls2}">${(s.weeklyTrend||'neut').toUpperCase()}</span>`;
     return`<tr class="${sigClass(s.signal)}">
       <td class="c-dim">${idealFlag}${i+1}</td>
-      <td>${goodFlag}<strong>${s.symbol}</strong></td>
+      <td>${alignBadge}${goodFlag}<strong>${s.symbol}</strong></td>
       <td>${sigBadge(s.signal)}</td>
       <td><strong class="${scoreCls}">${s.score}</strong></td>
-      <td>${weeklyBadge}</td>
-      <td>${alignBadge}</td>
+      <td>${concBadge2}</td>
       <td>${bz}</td>
       <td><span class="${s.hvp>60?'c-bull':s.hvp<35?'c-bear':'c-amb'}">${s.hvp}</span></td>
       <td>₹${s.cmp.toFixed(1)}</td>
@@ -2524,9 +2418,8 @@ function renderTop25() {
       <td class="${s.ret_250>0?'c-bull':'c-bear'}">${retStr}</td>
     </tr>`;
   };
-  document.getElementById('top25BuyBody').innerHTML=buys.length?buys.map(row).join(''):`<tr><td colspan="15" class="empty">No buy signals today</td></tr>`;
-  document.getElementById('top25SellBody').innerHTML=sells.length?sells.map(row).join(''):`<tr><td colspan="15" class="empty">No sell signals today</td></tr>`;
-  buildTop25RegimeCallout();
+  document.getElementById('top25BuyBody').innerHTML=buys.length?buys.map(row).join(''):`<tr><td colspan="14" class="empty">No buy signals today</td></tr>`;
+  document.getElementById('top25SellBody').innerHTML=sells.length?sells.map(row).join(''):`<tr><td colspan="14" class="empty">No sell signals today</td></tr>`;
 }
 function sortTop25(type,col){if(type==='buy')top25SortBuy=col;else top25SortSell=col;renderTop25()}
 
@@ -2573,7 +2466,9 @@ function applyFilters() {
   const fIdx=(document.getElementById('fIdx')||{}).value||'';
   const fBand=(document.getElementById('fBand')||{}).value||'';
   const fSearch=((document.getElementById('fSearch')||{}).value||'').toUpperCase();
+  var fAlign=(document.getElementById('fAlign')||{}).value||'';
   sigFiltered=allSignals.filter(s=>
+    (!fAlign||s.regime_alignment===fAlign)&&
     (!fSig||s.signal===fSig)&&
     (!fSec||s.sector===fSec)&&
     (!fIdx||s.index===fIdx)&&
@@ -2651,19 +2546,19 @@ function renderPFCards() {
   const active=dailyPortfolios.filter(p=>p.status==='active');
   if(!active.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">No active portfolios. Load data and create portfolios.</div>';return}
   el.innerHTML=active.map(pf=>{
-    const alignCounts={aligned:0,contrarian:0,neutral:0};
-    pf.stocks.forEach(s=>{const a=s.regime_alignment||'neutral';alignCounts[a]=(alignCounts[a]||0)+1});
-    const alignSummary=`<span class="c-bull">${alignCounts.aligned}✅ aligned</span> · <span class="c-bear">${alignCounts.contrarian}🔴 contrarian</span> · <span class="c-amb">${alignCounts.neutral}🟡 neutral</span>`;
     const pnlClass=pf.totalPnlPct>=0?'c-bull':'c-bear';
     const pfClass=pf.type==='buy'?'pf-buy':'pf-sell';
     const rows=pf.stocks.map(s=>{
       const sp=s.pnl_pct||0;
       const sc=sp>0?'c-bull':sp<0?'c-bear':'c-dim';
       const stBadge=s.status==='TP'?'<span class="b b-bull">TP</span>':s.status==='SL'?'<span class="b b-bear">SL</span>':'<span class="b b-open">OPEN</span>';
-      const alignBadge=s.regime_alignment?regimeAlignBadge(s.regime_alignment, s.indexRegimeDetail||{}):'<span class="b b-neutral">🟡 NEUTRAL</span>';
-      return`<tr><td>${s.symbol}</td><td>${s.sector.substring(0,12)}</td>
+      var pa=s.regime_alignment||'neutral';
+      var pb=pa==='aligned'?'<span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3);font-size:7px">WITH</span> '
+        :pa==='contrarian'?'<span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3);font-size:7px">CONTRA</span> '
+        :pa==='partial'?'<span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3);font-size:7px">PART</span> '
+        :'';
+      return`<tr><td>${pb}${s.symbol}</td><td>${s.sector.substring(0,12)}</td>
         <td>${sigBadge(s.signal)}</td>
-        <td>${alignBadge}</td>
         <td>₹${s.current_price?s.current_price.toFixed(1):s.cmp.toFixed(1)}</td>
         <td class="${sc}">${sp>0?'+':''}${sp}%</td>
         <td class="${sc}">₹${s.pnl_amt||0}</td>
@@ -2672,8 +2567,14 @@ function renderPFCards() {
     return`<div class="pf-card ${pfClass}">
       <div class="pf-hdr">
         <div>
-          <div class="pf-title ${pf.type==='buy'?'c-bull':'c-bear'}">${pf.type==="buy"?"📈":"📉"} ${pf.type.toUpperCase()} Portfolio · ${pf.day} <span style="font-size:8px;opacity:.6">= Top 25 Picks</span></div>
-          <div class="pf-meta">${pf.stocks.length} stocks · ${pf.sectors?pf.sectors.length+' sectors · ':''} Score≥${pf.minScoreUsed||'—'} · ${pf.regimeAtCreation?pf.regimeAtCreation.toUpperCase()+' regime · ':''} Dissolves ${pf.dissolveDay} ${pf.dissolveDate}</div>
+          <div class="pf-title ${pf.type==='buy'?'c-bull':'c-bear'}">${pf.type.toUpperCase()} Portfolio · ${pf.day}</div>
+          <div class="pf-meta">${pf.stocks.length} stocks · ${pf.sectors?pf.sectors.length+' sectors · ':''} Score≥${pf.minScoreUsed||'—'} · ${pf.regimeAtCreation?pf.regimeAtCreation.toUpperCase()+' regime · ':''} Dissolves ${pf.dissolveDay} ${pf.dissolveDate} &nbsp;·&nbsp; ${(function(){
+    var s=pf.alignmentSummary||{};var parts=[];
+    if(s.aligned>0)parts.push('<span style="color:var(--bull)">'+s.aligned+' WITH</span>');
+    if(s.partial>0)parts.push('<span style="color:var(--amber)">'+s.partial+' PART</span>');
+    if(s.contrarian>0)parts.push('<span style="color:var(--bear)">'+s.contrarian+' CONTRA</span>');
+    return parts.join(' \xb7 ')||'';
+  })()}</div>
         </div>
         <div style="text-align:right">
           <div class="pf-stat"><label>P&L</label><span class="${pnlClass}">${pf.totalPnlPct>=0?'+':''}${pf.totalPnlPct}%</span></div>
@@ -2681,14 +2582,13 @@ function renderPFCards() {
         </div>
       </div>
       <div class="pf-body">
-        <div style="display:flex;gap:14px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:14px;margin-bottom:8px">
           <div class="pf-stat"><label>Avg Score</label><span class="c-amb">${pf.avgScore}</span></div>
           <div class="pf-stat"><label>Win/Loss</label><span>${pf.winCount}W / ${pf.lossCount}L</span></div>
           <div class="pf-stat"><label>Capital</label><span>₹${(pf.capital||0).toLocaleString('en-IN')}</span></div>
-          <div class="pf-stat" style="font-family:var(--mono);font-size:8px"><label>IDX Align</label><span>${alignSummary}</span></div>
         </div>
         <div class="tw" style="max-height:220px;overflow-y:auto">
-          <table><thead><tr><th>Symbol</th><th>Sector</th><th>Signal</th><th>IDX Align</th><th>Price</th><th>P&L%</th><th>P&L₹</th><th>Status</th></tr></thead>
+          <table><thead><tr><th>Symbol</th><th>Sector</th><th>Signal</th><th>Price</th><th>P&L%</th><th>P&L₹</th><th>Status</th></tr></thead>
           <tbody>${rows}</tbody></table>
         </div>
       </div>
@@ -2757,275 +2657,7 @@ function renderPage3() {
   renderM6();
   renderSectors();
   renderLedger();
-  renderM8();
-}
-
-// ═══════════════════════════════════════════════════════════
-// RENDER — M8 REGIME CROSS-PERFORMANCE
-// ═══════════════════════════════════════════════════════════
-function renderM8() {
-  const buyEl  = document.getElementById('m8BuyBody');
-  const sellEl = document.getElementById('m8SellBody');
-  const detEl  = document.getElementById('m8DetailBody');
-  const sumEl  = document.getElementById('m8Summary');
-  const conEl  = document.getElementById('m8Contrarian');
-  if(!buyEl) return;
-
-  const BREAKEVEN = 63.6; // TP=2.0% SL=3.5% breakeven WR
-
-  // Load ledger — only resolved (win/loss) records
-  const ledger = loadLedger().filter(r => r.outcome === 'win' || r.outcome === 'loss');
-
-  if(ledger.length < 5) {
-    [buyEl, sellEl, detEl].forEach(el => {
-      if(el) el.innerHTML = '<tr><td colspan="6" class="empty">Not enough resolved trades yet. Trades accumulate automatically as signals resolve.</td></tr>';
-    });
-    if(sumEl) sumEl.innerHTML = '<div class="empty">Accumulating trade data… at least 5 resolved trades needed.</div>';
-    return;
-  }
-
-  // ── Helper: compute stats for a group of ledger records ──
-  function groupStats(records) {
-    const n     = records.length;
-    const wins  = records.filter(r => r.outcome === 'win').length;
-    const wr    = n > 0 ? Math.round(wins / n * 100) : 0;
-    const pnls  = records.filter(r => r.pnl_pct !== null && r.pnl_pct !== undefined).map(r => r.pnl_pct);
-    const avgPnl = pnls.length ? parseFloat((pnls.reduce((a,b)=>a+b,0) / pnls.length).toFixed(2)) : null;
-    const ev    = avgPnl !== null ? parseFloat((wr/100 * 2.0 - (1 - wr/100) * 3.5).toFixed(2)) : null;
-    return { n, wins, wr, avgPnl, ev };
-  }
-
-  // Normalise regime stored in ledger: 'bull'/'bear'/'flat'/'mixed'/'caution' → display labels
-  function regimeLabel(r) {
-    if(r === 'bull' || r === 'full') return 'BULL';
-    if(r === 'bear')                 return 'BEAR';
-    return 'MIXED/FLAT';
-  }
-  function regimeKey(r) {
-    if(r === 'bull' || r === 'full') return 'bull';
-    if(r === 'bear')                 return 'bear';
-    return 'neutral';
-  }
-
-  // ── Bucket ledger by direction × regime ──
-  const buckets = {};
-  ledger.forEach(r => {
-    const dir = r.signal && r.signal.startsWith('B') ? 'buy' : 'sell';
-    const rk  = regimeKey(r.regime || 'neutral');
-    const sig = r.signal || 'UNKNOWN';
-    // Top-level direction × regime
-    const dk  = dir + '|' + rk;
-    if(!buckets[dk]) buckets[dk] = [];
-    buckets[dk].push(r);
-    // Signal × regime detail
-    const sk  = sig + '|' + rk;
-    if(!buckets[sk]) buckets[sk] = [];
-    buckets[sk].push(r);
-  });
-
-  const REGIMES = ['bull', 'bear', 'neutral'];
-  const REGIME_DISPLAY = { bull:'🟢 BULL (NSEI trending up)', bear:'🔴 BEAR (NSEI trending down)', neutral:'🟡 MIXED/FLAT' };
-
-  // ── Verdict helper ──
-  function verdict(wr, n, dir, rk) {
-    if(n < 3) return '<span class="c-dim">Need more trades</span>';
-    const alignment = (dir==='buy'&&rk==='bull')||(dir==='sell'&&rk==='bear') ? 'aligned' : (rk==='neutral'?'neutral':'contrarian');
-    if(wr >= 70)  return `<span class="c-bull">✅ Strong EV+ ${alignment==='contrarian'?'(contrarian works!)':''}</span>`;
-    if(wr >= BREAKEVEN) return `<span class="c-bull">✅ Profitable (${alignment})</span>`;
-    if(wr >= 55)  return `<span class="c-amb">⚠️ Marginal — caution</span>`;
-    return `<span class="c-bear">❌ Below breakeven${alignment==='contrarian'?' — avoid contrarian':''}</span>`;
-  }
-
-  // ── Render BUY table ──
-  buyEl.innerHTML = REGIMES.map(rk => {
-    const st = groupStats(buckets['buy|'+rk] || []);
-    const vs = st.n > 0 ? (st.wr >= BREAKEVEN ? `<span class="c-bull">+${(st.wr - BREAKEVEN).toFixed(1)}% above BE</span>` : `<span class="c-bear">${(st.wr - BREAKEVEN).toFixed(1)}% below BE</span>`) : '<span class="c-dim">—</span>';
-    const wrCls = st.wr >= BREAKEVEN ? 'c-bull' : st.wr >= 55 ? 'c-amb' : 'c-bear';
-    const pnlCls = st.avgPnl > 0 ? 'c-bull' : 'c-bear';
-    return `<tr>
-      <td>${REGIME_DISPLAY[rk]}</td>
-      <td class="c-dim">${st.n}</td>
-      <td class="${wrCls}"><strong>${st.n>0?st.wr+'%':'—'}</strong></td>
-      <td class="${pnlCls}">${st.avgPnl!==null?(st.avgPnl>0?'+':'')+st.avgPnl+'%':'—'}</td>
-      <td>${vs}</td>
-      <td>${verdict(st.wr, st.n, 'buy', rk)}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="6" class="empty">No buy trades in ledger yet</td></tr>';
-
-  // ── Render SELL table ──
-  sellEl.innerHTML = REGIMES.map(rk => {
-    const st = groupStats(buckets['sell|'+rk] || []);
-    const vs = st.n > 0 ? (st.wr >= BREAKEVEN ? `<span class="c-bull">+${(st.wr - BREAKEVEN).toFixed(1)}% above BE</span>` : `<span class="c-bear">${(st.wr - BREAKEVEN).toFixed(1)}% below BE</span>`) : '<span class="c-dim">—</span>';
-    const wrCls = st.wr >= BREAKEVEN ? 'c-bull' : st.wr >= 55 ? 'c-amb' : 'c-bear';
-    const pnlCls = st.avgPnl > 0 ? 'c-bull' : 'c-bear';
-    return `<tr>
-      <td>${REGIME_DISPLAY[rk]}</td>
-      <td class="c-dim">${st.n}</td>
-      <td class="${wrCls}"><strong>${st.n>0?st.wr+'%':'—'}</strong></td>
-      <td class="${pnlCls}">${st.avgPnl!==null?(st.avgPnl>0?'+':'')+st.avgPnl+'%':'—'}</td>
-      <td>${vs}</td>
-      <td>${verdict(st.wr, st.n, 'sell', rk)}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="6" class="empty">No sell trades in ledger yet</td></tr>';
-
-  // ── Signal × Regime detail breakdown ──
-  const SIG_ORDER = ['B2','B3','B1-OS','B1-MOM','S2','S3','S1-OB','S1-MOM'];
-  const detRows = [];
-  SIG_ORDER.forEach(sig => {
-    REGIMES.forEach(rk => {
-      const recs = buckets[sig+'|'+rk] || [];
-      if(recs.length < 3) return;
-      const st = groupStats(recs);
-      const dir = sig.startsWith('B') ? 'buy' : 'sell';
-      const isAligned = (dir==='buy'&&rk==='bull')||(dir==='sell'&&rk==='bear');
-      const isContrarian = (dir==='buy'&&rk==='bear')||(dir==='sell'&&rk==='bull');
-      const alignLabel = isAligned ? '<span class="b b-aligned">🟢 ALIGNED</span>' : isContrarian ? '<span class="b b-contrarian">🔴 CONTRARIAN</span>' : '<span class="b b-neutral">🟡 NEUTRAL</span>';
-      const wrCls = st.wr >= BREAKEVEN ? 'c-bull' : st.wr >= 55 ? 'c-amb' : 'c-bear';
-      const pnlCls = st.avgPnl > 0 ? 'c-bull' : 'c-bear';
-      const evCls = st.ev > 0 ? 'c-bull' : 'c-bear';
-      let insight = '';
-      if(isContrarian && st.wr >= BREAKEVEN) insight = `<span class="c-bull">Contrarian works! (${st.wr}% WR in ${REGIME_DISPLAY[rk]})</span>`;
-      else if(isContrarian && st.wr < BREAKEVEN) insight = `<span class="c-bear">Contrarian failing — avoid</span>`;
-      else if(st.wr >= 70) insight = `<span class="c-bull">Strong combo — high conviction</span>`;
-      else if(st.wr >= BREAKEVEN) insight = `<span class="c-amb">Profitable — take it</span>`;
-      else insight = `<span class="c-bear">Below breakeven — reduce size</span>`;
-      detRows.push(`<tr>
-        <td>${sigBadge(sig)}</td>
-        <td>${REGIME_DISPLAY[rk]}</td>
-        <td class="c-dim">${st.n}</td>
-        <td class="${wrCls}"><strong>${st.wr}%</strong></td>
-        <td class="${pnlCls}">${st.avgPnl!==null?(st.avgPnl>0?'+':'')+st.avgPnl+'%':'—'}</td>
-        <td class="${evCls}">${st.ev!==null?(st.ev>0?'+':'')+st.ev+'%':'—'}</td>
-        <td>${alignLabel}</td>
-        <td>${insight}</td>
-      </tr>`);
-    });
-  });
-  detEl.innerHTML = detRows.join('') || '<tr><td colspan="8" class="empty">Accumulating data — need 3+ trades per signal × regime combination.</td></tr>';
-
-  // ── Summary card ──
-  const totalResolved = ledger.length;
-  const bullBuy = groupStats(buckets['buy|bull'] || []);
-  const bearBuy = groupStats(buckets['buy|bear'] || []);
-  const bullSell = groupStats(buckets['sell|bull'] || []);
-  const bearSell = groupStats(buckets['sell|bear'] || []);
-  const bestContrarian = [];
-  if(bearBuy.n >= 3 && bearBuy.wr >= BREAKEVEN) bestContrarian.push(`BUY signals in BEAR market: ${bearBuy.wr}% WR (${bearBuy.n} trades) — WORKS`);
-  if(bullSell.n >= 3 && bullSell.wr >= BREAKEVEN) bestContrarian.push(`SELL signals in BULL market: ${bullSell.wr}% WR (${bullSell.n} trades) — WORKS`);
-
-  if(sumEl) {
-    sumEl.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">
-      <div class="card" style="padding:8px 12px;border-left:3px solid var(--bull)">
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">BUY in BULL regime</div>
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700" class="${bullBuy.wr>=BREAKEVEN?'c-bull':'c-bear'}">${bullBuy.n>0?bullBuy.wr+'%':'—'}</div>
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">${bullBuy.n} trades · ${bullBuy.wr>=BREAKEVEN?'✅ Profitable':'❌ Below BE'}</div>
-      </div>
-      <div class="card" style="padding:8px 12px;border-left:3px solid var(--bear)">
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">BUY in BEAR regime (contrarian)</div>
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700" class="${bearBuy.wr>=BREAKEVEN?'c-bull':'c-bear'}">${bearBuy.n>0?bearBuy.wr+'%':'—'}</div>
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">${bearBuy.n} trades · ${bearBuy.n>=3?(bearBuy.wr>=BREAKEVEN?'✅ Contrarian works!':'❌ Avoid contrarian buys'):'Need more data'}</div>
-      </div>
-      <div class="card" style="padding:8px 12px;border-left:3px solid var(--bear)">
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">SELL in BEAR regime</div>
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700" class="${bearSell.wr>=BREAKEVEN?'c-bull':'c-bear'}">${bearSell.n>0?bearSell.wr+'%':'—'}</div>
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">${bearSell.n} trades · ${bearSell.wr>=BREAKEVEN?'✅ Profitable':'❌ Below BE'}</div>
-      </div>
-      <div class="card" style="padding:8px 12px;border-left:3px solid var(--bull)">
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">SELL in BULL regime (contrarian)</div>
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700" class="${bullSell.wr>=BREAKEVEN?'c-bull':'c-bear'}">${bullSell.n>0?bullSell.wr+'%':'—'}</div>
-        <div style="font-family:var(--mono);font-size:8px;color:var(--text2)">${bullSell.n} trades · ${bullSell.n>=3?(bullSell.wr>=BREAKEVEN?'✅ Contrarian works!':'❌ Avoid contrarian sells'):'Need more data'}</div>
-      </div>
-    </div>
-    <div style="font-family:var(--mono);font-size:8px;color:var(--text2);margin-top:6px">Total resolved trades: <strong class="c-kite">${totalResolved}</strong> · Breakeven WR: <strong class="c-amb">63.6%</strong> (TP=2.0% SL=3.5%)</div>`;
-  }
-
-  // ── Contrarian insights — stock-level RETURN performance when index was opposite ──
-  // This answers: "what % of stocks performed really well when underlying was opposite?"
-  // Uses ret_250 from allSignals cross-referenced with regime_alignment
-  if(conEl) {
-    const contraPerf = [];
-
-    // From live signals: contrarian signals that are EV+ combos (is_good_combo)
-    const contraGoodBuys  = allSignals.filter(s => s.signal.startsWith('B') && s.regime_alignment === 'contrarian' && s.is_good_combo);
-    const contraGoodSells = allSignals.filter(s => s.signal.startsWith('S') && s.regime_alignment === 'contrarian' && s.is_good_combo);
-
-    // From ledger: historical contrarian TP hit rate
-    const isContraRec = r => {
-      const isBuy = r.signal && r.signal.startsWith('B');
-      return (isBuy && (r.regime === 'bear' || r.regime === 'flat')) ||
-             (!isBuy && (r.regime === 'bull'));
-    };
-    const contraLedger = ledger.filter(isContraRec);
-    const contraWins   = contraLedger.filter(r => r.outcome === 'win').length;
-    const contraTotal  = contraLedger.length;
-    const contraWRAll  = contraTotal >= 3 ? Math.round(contraWins / contraTotal * 100) : null;
-
-    // Stock-level: among ALL signals today, what % of contrarian ones have positive 250d return?
-    const contraSigs = allSignals.filter(s => s.regime_alignment === 'contrarian' && s.ret_250 !== null);
-    const contraPos  = contraSigs.filter(s => s.ret_250 > 10).length;  // >10% = "really well"
-    const contraPct  = contraSigs.length >= 3 ? Math.round(contraPos / contraSigs.length * 100) : null;
-
-    // Aligned signals: comparison baseline
-    const alignedSigs = allSignals.filter(s => s.regime_alignment === 'aligned' && s.ret_250 !== null);
-    const alignedPos  = alignedSigs.filter(s => s.ret_250 > 10).length;
-    const alignedPct  = alignedSigs.length >= 3 ? Math.round(alignedPos / alignedSigs.length * 100) : null;
-
-    let html = `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
-      <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--bright);margin-bottom:8px">
-        💡 Stock Performance When Index Trend Was Opposite (Contrarian Evidence)
-      </div>`;
-
-    // Row 1: contrarian TP hit rate from ledger
-    if (contraWRAll !== null) {
-      const wrCls = contraWRAll >= BREAKEVEN ? 'c-bull' : 'c-bear';
-      const verdict = contraWRAll >= BREAKEVEN ? '✅ Contrarian signals DO work — stock-level strength overcomes index headwind' :
-                                                  '⚠️ Contrarian signals below breakeven — trade smaller or avoid';
-      html += `<div style="margin-bottom:6px;font-family:var(--mono);font-size:8px">
-        <span class="c-dim">Contrarian signal TP hit rate (ledger, ${contraTotal} trades):</span>
-        <strong class="${wrCls}"> ${contraWRAll}%</strong>
-        <span class="c-dim"> vs 63.6% breakeven → </span><span class="${wrCls}">${verdict}</span>
-      </div>`;
-    } else {
-      html += `<div style="margin-bottom:6px;font-family:var(--mono);font-size:8px;color:var(--text2)">Contrarian TP hit rate: accumulating ledger data (need 3+ resolved trades)</div>`;
-    }
-
-    // Row 2: stock 250d return analysis — answers the original question precisely
-    if (contraPct !== null) {
-      const cmpStr = alignedPct !== null ? ` vs <strong class="c-bull">${alignedPct}%</strong> of aligned signals` : '';
-      const diffCls = contraPct >= (alignedPct || 50) ? 'c-bull' : 'c-bear';
-      html += `<div style="margin-bottom:6px;font-family:var(--mono);font-size:8px">
-        <span class="c-dim">Of ${contraSigs.length} contrarian signals today — stocks with 250d return &gt;10%:</span>
-        <strong class="${diffCls}"> ${contraPct}%</strong>${cmpStr}
-        <span class="c-dim"> — This answers: do contrarian stocks outperform despite index headwind?</span>
-      </div>`;
-    }
-
-    // Row 3: today's high-conviction contrarian picks (EV+ combos only)
-    if (contraGoodBuys.length || contraGoodSells.length) {
-      html += `<div style="margin-bottom:4px;font-family:var(--mono);font-size:8px;color:var(--text2)">High-conviction contrarian picks today (EV+ combo, signal fires against index):</div>`;
-      if (contraGoodBuys.length) {
-        html += `<div style="font-family:var(--mono);font-size:8px">
-          📈 BUY contrarians: <strong class="c-bull">${contraGoodBuys.slice(0,5).map(s=>s.symbol+' ('+s.score+')').join(', ')}</strong>
-          ${contraGoodBuys.length > 5 ? ` +${contraGoodBuys.length-5} more` : ''}
-        </div>`;
-      }
-      if (contraGoodSells.length) {
-        html += `<div style="font-family:var(--mono);font-size:8px">
-          📉 SELL contrarians: <strong class="c-bear">${contraGoodSells.slice(0,5).map(s=>s.symbol+' ('+s.score+')').join(', ')}</strong>
-          ${contraGoodSells.length > 5 ? ` +${contraGoodSells.length-5} more` : ''}
-        </div>`;
-      }
-    } else {
-      html += `<div style="font-family:var(--mono);font-size:8px;color:var(--text3)">No high-conviction (EV+) contrarian signals firing today.</div>`;
-    }
-
-    html += `<div style="margin-top:6px;font-family:var(--mono);font-size:7px;color:var(--text3)">
-      Remember: Even on a BULL day, sell signals fire. Even on a BEAR day, buy signals fire.
-      The system always shows Top 25 on both sides. These badges and stats help you decide size &amp; conviction — not whether to look.
-    </div></div>`;
-
-    conEl.innerHTML = html;
-  }
+  renderRegimeCrossPerf();
 }
 
 function renderM6() {
@@ -3425,7 +3057,7 @@ function switchIntel(name){
 }
 function renderIntelActive(){const active=document.querySelector('.i-panel.active');if(active)renderIntelTab(active.id.replace('intel-',''))}
 function renderIntelTab(name){
-  const map={m6:renderM6,m1:renderM1,m4:renderM4,m2:renderM2,m3:renderM3,m5:renderM5,m7:renderM7,m8:renderM8,tpsl:renderTPSL,mb:renderMB,sectors:renderSectors,ledger:renderLedger,retcorr:renderRetCorr,wrref:function(){}};
+  const map={m6:renderM6,m1:renderM1,m4:renderM4,m2:renderM2,m3:renderM3,m5:renderM5,m7:renderM7,tpsl:renderTPSL,mb:renderMB,sectors:renderSectors,ledger:renderLedger,retcorr:renderRetCorr,wrref:function(){},regimexperf:function(){renderRegimeCrossPerf();}};
   if(map[name])map[name]();
 }
 
@@ -3502,6 +3134,150 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
   // Render portfolio page from stored data
   if(dailyPortfolios.length||dpfArchive.length)renderPage2();
 })();
+// ── Regime Cross-Performance: how signals perform WITH vs AGAINST market ──
+function renderRegimeCrossPerf() {
+  var el=document.getElementById('intel-regimexperf');
+  if(!el) return;
+  var ledger=loadLedger();
+  var resolved=ledger.filter(function(r){return r.status==='win'||r.status==='loss';});
+  var BK=63.6; // breakeven WR
+
+  if(resolved.length<5){
+    el.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text2)"><div style="font-size:28px;opacity:.2;margin-bottom:10px">&#x1F4CA;</div>Regime cross-performance builds from resolved trades.<br>Need at least 5 — currently '+resolved.length+'.<br><span style="color:var(--text3);margin-top:6px;display:block">Data accumulates as portfolios dissolve (TP/SL hit or 4-day hold ends)</span></div>';
+    return;
+  }
+
+  // Group by regime_at_entry × buy/sell direction
+  var byDir={buy:{aligned:{w:0,t:0,p:[]},partial:{w:0,t:0,p:[]},contrarian:{w:0,t:0,p:[]},neutral:{w:0,t:0,p:[]}},
+             sell:{aligned:{w:0,t:0,p:[]},partial:{w:0,t:0,p:[]},contrarian:{w:0,t:0,p:[]},neutral:{w:0,t:0,p:[]}}};
+  var bySigAln={};
+  var byIdx={};
+
+  resolved.forEach(function(r){
+    var aln=r.regime_at_entry||'neutral';
+    var isBuy=r.signal&&r.signal.startsWith('B');
+    var dir=isBuy?'buy':'sell';
+    var isWin=r.status==='win';
+    var pnl=r.pnl_pct||0;
+    if(byDir[dir]&&byDir[dir][aln]){byDir[dir][aln].t++;if(isWin)byDir[dir][aln].w++;byDir[dir][aln].p.push(pnl);}
+    var key=(r.signal||'?')+'|'+aln;
+    if(!bySigAln[key])bySigAln[key]={w:0,t:0,p:[]};
+    bySigAln[key].t++;if(isWin)bySigAln[key].w++;bySigAln[key].p.push(pnl);
+    var ia=r.index_alignments_at_entry||{};
+    var iks=Object.keys(ia);
+    for(var ki=0;ki<iks.length;ki++){
+      var ik=iks[ki],iv=ia[ik];
+      if(!byIdx[ik])byIdx[ik]={with:{w:0,t:0},against:{w:0,t:0},neutral:{w:0,t:0}};
+      if(byIdx[ik][iv]){byIdx[ik][iv].t++;if(isWin)byIdx[ik][iv].w++;}
+    }
+  });
+
+  function wr(o){return o.t>0?Math.round(o.w/o.t*100):null;}
+  function ap(arr){return arr.length>0?parseFloat((arr.reduce(function(a,b){return a+b;},0)/arr.length).toFixed(2)):null;}
+  function wrBar(w,n){
+    if(w===null) return '<span style="color:var(--text3)">—</span>';
+    var col=w>=BK?'var(--bull)':w>=54?'var(--amber)':'var(--bear)';
+    return '<div style="display:flex;align-items:center;gap:5px"><div style="width:70px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+Math.min(w,100)+'%;background:'+col+';border-radius:3px"></div></div><strong style="color:'+col+'">'+w+'%</strong><span style="color:var(--text3);font-size:8px">n='+(n||0)+'</span></div>';
+  }
+  function grade(w){
+    if(w===null) return '—';
+    return w>=BK?'<span class="b b-bull">EV+</span>':'<span class="b b-bear">EV-</span>';
+  }
+
+  var ALNS=[['aligned','With market','Signal aligns with ALL index trends'],
+            ['partial','Partial','NSEI agrees — sub-indices mixed'],
+            ['contrarian','Contrarian','Signal AGAINST overall market trend'],
+            ['neutral','Neutral','Mixed/flat regime']];
+  var SIGS=['B2','B3','B1-OS','B1-MOM','S2','S3','S1-OB','S1-MOM'];
+
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
+
+  // ── Buy × Alignment ──
+  html+='<div><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">BUY SIGNALS × MARKET ALIGNMENT</div>';
+  html+='<div class="tw"><table><thead><tr><th>Alignment</th><th>Win Rate</th><th>Avg P&L</th><th>Grade</th></tr></thead><tbody>';
+  ALNS.forEach(function(row){
+    var aln=row[0],label=row[1],tip=row[2];
+    var o=byDir.buy[aln];
+    var w=wr(o),a=ap(o.p);
+    var bg=aln==='contrarian'?'background:rgba(220,38,38,.04)':'';
+    html+='<tr style="'+bg+'" title="'+tip+'"><td style="font-family:var(--mono);font-size:9px"><span style="color:'+(aln==='aligned'?'var(--bull)':aln==='contrarian'?'var(--bear)':aln==='partial'?'var(--amber)':'var(--text2)')+'">'+label+'</span></td><td>'+wrBar(w,o.t)+'</td><td style="color:'+(a!==null?(a>=0?'var(--bull)':'var(--bear)'):'var(--text3)')+'">'+(a!==null?(a>=0?'+':'')+a+'%':'—')+'</td><td>'+grade(w)+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  // Contrarian insight
+  var cbWR=wr(byDir.buy.contrarian);
+  if(cbWR!==null){
+    html+='<div class="ins '+(cbWR>=BK?'bull':'bear')+'" style="margin-top:8px;font-size:9px"><strong>'+(cbWR>=BK?'✓ Contrarian buys WORK ('+cbWR+'%)':'⚠ Contrarian buys underperform ('+cbWR+'%)')+'</strong> vs '+BK+'% breakeven. '+(cbWR>=BK?'Individual stocks rally in any regime. Keep taking EV+ buy signals regardless of NSEI direction.':'Market regime IS hurting buy signals. Prefer aligned/partial setups.')+'</div>';
+  } else {
+    html+='<div class="ins" style="margin-top:8px;font-size:9px">Not enough contrarian buy data yet — builds as portfolios dissolve.</div>';
+  }
+  html+='</div>';
+
+  // ── Sell × Alignment ──
+  html+='<div><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SELL SIGNALS × MARKET ALIGNMENT</div>';
+  html+='<div class="tw"><table><thead><tr><th>Alignment</th><th>Win Rate</th><th>Avg P&L</th><th>Grade</th></tr></thead><tbody>';
+  ALNS.forEach(function(row){
+    var aln=row[0],label=row[1],tip=row[2];
+    var o=byDir.sell[aln];
+    var w=wr(o),a=ap(o.p);
+    var bg=aln==='contrarian'?'background:rgba(220,38,38,.04)':'';
+    html+='<tr style="'+bg+'" title="'+tip+'"><td style="font-family:var(--mono);font-size:9px"><span style="color:'+(aln==='aligned'?'var(--bull)':aln==='contrarian'?'var(--bear)':aln==='partial'?'var(--amber)':'var(--text2)')+'">'+label+'</span></td><td>'+wrBar(w,o.t)+'</td><td style="color:'+(a!==null?(a>=0?'var(--bull)':'var(--bear)'):'var(--text3)')+'">'+(a!==null?(a>=0?'+':'')+a+'%':'—')+'</td><td>'+grade(w)+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  var csWR=wr(byDir.sell.contrarian);
+  if(csWR!==null){
+    html+='<div class="ins '+(csWR>=BK?'bull':'bear')+'" style="margin-top:8px;font-size:9px"><strong>'+(csWR>=BK?'✓ Contrarian sells WORK ('+csWR+'%)':'⚠ Contrarian sells weaker ('+csWR+'%)')+'</strong>. '+(csWR>=BK?'Individual stocks break down in ANY regime. Take EV+ sell signals always.':'Bull market absorbs sell signals. Consider reducing contrarian sell size.')+'</div>';
+  } else {
+    html+='<div class="ins" style="margin-top:8px;font-size:9px">Not enough contrarian sell data yet.</div>';
+  }
+  html+='</div></div>';
+
+  // ── Per-Index Alignment ──
+  var idxKeys=Object.keys(byIdx).sort();
+  if(idxKeys.length>0){
+    html+='<div style="margin-bottom:12px"><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">WIN RATE — WITH vs AGAINST EACH INDEX</div>';
+    html+='<div class="tw"><table><thead><tr><th>Index</th><th>WITH trend WR</th><th>AGAINST trend WR</th><th>Edge (WITH − AGAINST)</th></tr></thead><tbody>';
+    idxKeys.forEach(function(idx){
+      var d=byIdx[idx],wW=wr(d.with),wA=wr(d.against);
+      var edge=(wW!==null&&wA!==null)?wW-wA:null;
+      var ec=edge===null?'var(--text3)':edge>10?'var(--bull)':edge>0?'var(--amber)':'var(--bear)';
+      html+='<tr><td style="font-family:var(--mono);font-weight:700;color:var(--bright)">'+idx+'</td><td>'+wrBar(wW,d.with.t)+'</td><td>'+wrBar(wA,d.against.t)+'</td><td style="font-family:var(--mono);font-weight:700;color:'+ec+'">'+(edge!==null?(edge>0?'+':'')+edge+'%':'—')+'</td></tr>';
+    });
+    html+='</tbody></table></div></div>';
+  }
+
+  // ── Signal × Regime Matrix ──
+  html+='<div style="margin-bottom:12px"><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SIGNAL TYPE × REGIME — WR MATRIX</div>';
+  html+='<div style="overflow-x:auto"><table class="corr-table"><thead><tr><th>Signal</th><th>Aligned</th><th>Partial</th><th>Contrarian</th><th>Neutral</th></tr></thead><tbody>';
+  SIGS.forEach(function(sig){
+    html+='<tr><td style="font-family:var(--mono);font-weight:700">'+(sig.startsWith('B')?'<span style="color:var(--bull)">':'<span style="color:var(--bear)">')+sig+'</span></td>';
+    ['aligned','partial','contrarian','neutral'].forEach(function(aln){
+      var key=sig+'|'+aln,o=bySigAln[key]||{w:0,t:0};
+      var w=wr(o);
+      var cls=w===null?'cr-n':w>=70?'cr-sp':w>=60?'cr-mp':w>=50?'cr-n':'cr-sn';
+      html+='<td class="'+cls+'">'+(w!==null?w+'%<br><span style="font-size:7px;opacity:.6">n='+o.t+'</span>':'—')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:5px">Breakeven: '+BK+'% (TP=2% SL=3.5% R:R=1:1.75) · '+resolved.length+' resolved trades · Updates automatically as portfolios dissolve</div></div>';
+
+  // ── Summary ──
+  html+='<div style="background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(13,148,136,.04));border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px">';
+  html+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--bright);margin-bottom:8px">KEY INSIGHT — ALWAYS TAKE BOTH SIDES IN ANY REGIME</div>';
+  html+='<div style="font-family:var(--mono);font-size:9px;color:var(--text);line-height:1.8">';
+  html+='<div>📈 <strong style="color:var(--bull)">BUY signals:</strong> ';
+  var baWR=wr(byDir.buy.aligned),bcWR=wr(byDir.buy.contrarian);
+  html+=(baWR!==null?'Aligned WR='+baWR+'%':'Aligned — no data')+' · '+(bcWR!==null?'Contrarian WR='+bcWR+'%':'Contrarian — no data')+'</div>';
+  html+='<div>📉 <strong style="color:var(--bear)">SELL signals:</strong> ';
+  var saWR=wr(byDir.sell.aligned),scWR=wr(byDir.sell.contrarian);
+  html+=(saWR!==null?'Aligned WR='+saWR+'%':'Aligned — no data')+' · '+(scWR!==null?'Contrarian WR='+scWR+'%':'Contrarian — no data')+'</div>';
+  html+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--text2)">NANDI always generates Top 25 Buy + Top 25 Sell in EVERY regime. Regime alignment is shown as WITH/PART/CONTRA badge — you decide whether to take contrarian positions based on your own data above. The system never blocks signals based on regime.</div>';
+  html+='</div></div>';
+
+  el.innerHTML=html;
+}
+
+
 </script>
 </body>
 </html>
