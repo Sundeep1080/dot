@@ -347,7 +347,7 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
       <select class="fi" id="fSig" onchange="applyFilters()"><option value="">All Signals</option><option>B1-OS</option><option>B1-MOM</option><option>B2</option><option>B3</option><option>S1-OB</option><option>S1-MOM</option><option>S2</option><option>S3</option></select>
       <select class="fi" id="fSec" onchange="applyFilters()"><option value="">All Sectors</option></select>
       <select class="fi" id="fIdx" onchange="applyFilters()"><option value="">All Indices</option></select>
-      <select class="fi" id="fAlign" onchange="applyFilters()" title="Regime alignment"><option value="">All Alignments</option><option value="aligned">WITH Mkt</option><option value="partial">Partial</option><option value="contrarian">Contrarian</option><option value="neutral">Neutral</option></select>
+      <select class="fi" id="fAlign" onchange="applyFilters()"><option value="">All Regimes</option><option value="aligned">WITH Mkt</option><option value="partial">Partial</option><option value="contrarian">Contrarian</option><option value="neutral">Neutral</option></select>
       <select class="fi" id="fBand" onchange="applyFilters()"><option value="">All Zones</option><option value="rej_lo">REJ Lo</option><option value="below_va">Below VA</option><option value="va">VA</option><option value="above_va">Above VA</option><option value="rej_hi">REJ Hi</option></select>
       <input class="fi" id="fSearch" placeholder="Search symbol…" oninput="applyFilters()" style="width:130px">
       <select class="fi" id="selMinDays" title="Minimum trading days required per stock" style="min-width:90px" onchange="updateLookbackHeaders()">
@@ -434,7 +434,7 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
     <button class="i-tab" onclick="switchIntel('mb')">Multibagger</button>
     <button class="i-tab" onclick="switchIntel('sectors')">Sectors</button>
     <button class="i-tab" onclick="switchIntel('wrref')">WR Reference</button>
-    <button class="i-tab" onclick="switchIntel('regimexperf')">📊 Regime vs Signal</button>
+    <button class="i-tab" onclick="switchIntel('regimexperf')">&#x1F4CA; Regime vs Signal</button>
     <button class="i-tab" onclick="switchIntel('ledger')">Ledger</button>
     <button class="i-tab" onclick="switchIntel('retcorr')">Return Corr</button>
   </div>
@@ -542,9 +542,8 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
   </div>
 
 
-  <!-- REGIME CROSS-PERF -->
+  <!-- REGIME XPERF -->
   <div class="i-panel card" id="intel-regimexperf" style="border-radius:0 0 var(--r-lg) var(--r-lg)"></div>
-
   <!-- WR REFERENCE -->
   <div class="i-panel card" id="intel-wrref" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
     <div class="ct amber"><i class="fas fa-table"></i> Win Rate Reference — TP=2.0% SL=3.5% (RR 1:1.75, Breakeven WR=63.6%)</div>
@@ -1540,23 +1539,17 @@ async function processAll(bySymbol) {
       // IRAVAT extras — used for display
       weeklyTrend, barsAgo, weeklyAligned:(signal.startsWith('B')&&weeklyTrend==='bull')||(signal.startsWith('S')&&weeklyTrend==='bear'),
       regime_alignment:(function(){
-        var isBuy=signal.startsWith('B');
-        var fullBull=overallRegime==='full';
-        var fullBear=overallRegime==='bear';
-        if(fullBull) return isBuy?'aligned':'contrarian';
-        if(fullBear) return isBuy?'contrarian':'aligned';
-        var nseiR=regimeData['NSEI']||regimeData['CRSLDX']||{trend:'flat'};
-        if(nseiR.trend==='bull') return isBuy?'partial':'contrarian';
-        if(nseiR.trend==='bear') return isBuy?'contrarian':'partial';
+        var b=signal.startsWith('B');
+        if(overallRegime==='full')  return b?'aligned':'contrarian';
+        if(overallRegime==='bear')  return b?'contrarian':'aligned';
+        var nt=(regimeData['NSEI']||regimeData['CRSLDX']||{trend:'flat'}).trend;
+        if(nt==='bull') return b?'partial':'contrarian';
+        if(nt==='bear') return b?'contrarian':'partial';
         return 'neutral';
       })(),
       index_alignments:(function(){
-        var isBuy=signal.startsWith('B'); var res={};
-        var ks=Object.keys(regimeData);
-        for(var ki=0;ki<ks.length;ki++){
-          var k=ks[ki],rd=regimeData[k];
-          res[k]=(isBuy&&rd.trend==='bull')||(!isBuy&&rd.trend==='bear')?'with':rd.trend==='flat'?'neutral':'against';
-        }
+        var b=signal.startsWith('B'),res={},ks=Object.keys(regimeData);
+        for(var i=0;i<ks.length;i++){var rd=regimeData[ks[i]];res[ks[i]]=(b&&rd.trend==='bull')||(!b&&rd.trend==='bear')?'with':rd.trend==='flat'?'neutral':'against';}
         return res;
       })(),
     };
@@ -1577,8 +1570,7 @@ async function processAll(bySymbol) {
         prev_signal:prevSig,best_indicator:globalBestInd,
         avg_bef_exit:null
       };
-      if(!rec.regime_at_entry) rec.regime_at_entry = rec.regime_alignment||'neutral';
-      if(!rec.index_alignments_at_entry) rec.index_alignments_at_entry = rec.index_alignments||{};
+      rec.regime_at_entry=rec.regime_alignment||'neutral';rec.index_alignments_at_entry=rec.index_alignments||{};
       ledger.push(rec);
       newAdded++;
     }
@@ -1924,8 +1916,6 @@ function createDailyPortfolios() {
   if(existing){toast('Portfolio for '+dayInfo.dayName+' '+dayInfo.createdDate+' already exists','info');renderPage2();return}
 
   // Filter + sort by score
-  // Use same unified selection as Top 25 display
-  // The 25 stocks you see ARE the portfolio — identical selection
   var buys=selectTop25(allSignals,'buy');
   var sells=selectTop25(allSignals,'sell');
 
@@ -2005,12 +1995,7 @@ function createDailyPortfolios() {
       id:'BUY_'+dayInfo.createdDate,type:'buy',day:dayInfo.dayName,
       createdDate:dayInfo.createdDate,dissolveDate:dayInfo.dissolveDate,dissolveDay:dayInfo.dissolveDay,
       status:'active',capital,stocks,totalPnl:0,totalPnlPct:0,winCount:0,lossCount:0,
-      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,holdDays:4,
-      alignmentSummary:(function(){
-        var c={aligned:0,partial:0,contrarian:0,neutral:0};
-        for(var i=0;i<stocks.length;i++){var a=stocks[i].regime_alignment||'neutral';if(c[a]!==undefined)c[a]++;}
-        return c;
-      })()
+      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,holdDays:4,alignmentSummary:(function(){var c={aligned:0,partial:0,contrarian:0,neutral:0};for(var i=0;i<stocks.length;i++){var a=stocks[i].regime_alignment||'neutral';if(c[a]!==undefined)c[a]++;}return c;})()
     });
     toast('BUY: '+buyList.length+' stocks across '+sectors.length+' sectors · '+dayInfo.dayName+' → dissolves '+dayInfo.dissolveDay,'ok');
   }
@@ -2030,12 +2015,7 @@ function createDailyPortfolios() {
       id:'SELL_'+dayInfo.createdDate,type:'sell',day:dayInfo.dayName,
       createdDate:dayInfo.createdDate,dissolveDate:dayInfo.dissolveDate,dissolveDay:dayInfo.dissolveDay,
       status:'active',capital,stocks,totalPnl:0,totalPnlPct:0,winCount:0,lossCount:0,
-      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,holdDays:4,
-      alignmentSummary:(function(){
-        var c={aligned:0,partial:0,contrarian:0,neutral:0};
-        for(var i=0;i<stocks.length;i++){var a=stocks[i].regime_alignment||'neutral';if(c[a]!==undefined)c[a]++;}
-        return c;
-      })()
+      avgScore,sectors,minScoreUsed:minScore,regimeAtCreation:overallRegime,holdDays:4,alignmentSummary:(function(){var c={aligned:0,partial:0,contrarian:0,neutral:0};for(var i=0;i<stocks.length;i++){var a=stocks[i].regime_alignment||'neutral';if(c[a]!==undefined)c[a]++;}return c;})()
     });
     toast('SELL: '+sellList.length+' stocks across '+sectors.length+' sectors → see Options tab','ok');
   }
@@ -2316,47 +2296,26 @@ function top25Sort(a, b, col) {
   return rb - ra;
 }
 
-// ── selectTop25: unified selection for BOTH Top 25 display AND daily portfolio ──
-// These are the same 25 stocks — no divergence between display and portfolio
-function selectTop25(signals, type) {
-  var isBuy = type === 'buy';
-  var regThr = getRegimeThreshold();
-  var alnScore = {aligned:3,partial:2,neutral:1,contrarian:0};
-
-  // STEP 1: Filter — EV-positive or high-score override
-  // ALL regimes: always show 25 buy + 25 sell regardless of market direction
-  // Regime alignment is INFORMATIONAL — contrarians are included, just ranked lower
-  var qualified = signals.filter(function(s) {
-    if(isBuy && !s.signal.startsWith('B')) return false;
-    if(!isBuy && !s.signal.startsWith('S')) return false;
-    if(s.is_good_combo) return true;
-    // B1-MOM/B1-OS excluded unless is_good_combo (EV negative in most zones)
-    if(s.signal==='B1-MOM'||s.signal==='B1-OS'||s.signal==='S1-OB') return false;
-    // High score override
-    if(s.score >= regThr+10) return true;
-    return s.score >= regThr;
+function selectTop25(signals,type){
+  var isBuy=type==='buy',regThr=getRegimeThreshold();
+  var asc={aligned:3,partial:2,neutral:1,contrarian:0};
+  var q=signals.filter(function(s){
+    if(isBuy&&!s.signal.startsWith('B'))return false;
+    if(!isBuy&&!s.signal.startsWith('S'))return false;
+    if(s.is_good_combo)return true;
+    if(s.signal==='B1-MOM'||s.signal==='B1-OS'||s.signal==='S1-OB')return false;
+    return s.score>=regThr;
   });
-
-  // STEP 2: Sort — EV+ first, then regime-aligned, then score
-  qualified.sort(function(a,b){
-    if(a.is_good_combo&&!b.is_good_combo) return -1;
-    if(!a.is_good_combo&&b.is_good_combo) return 1;
-    var aA=alnScore[a.regime_alignment]||1, bA=alnScore[b.regime_alignment]||1;
-    if(aA!==bA) return bA-aA;
+  q.sort(function(a,b){
+    if(a.is_good_combo&&!b.is_good_combo)return -1;
+    if(!a.is_good_combo&&b.is_good_combo)return 1;
+    var da=asc[a.regime_alignment]||1,db=asc[b.regime_alignment]||1;
+    if(da!==db)return db-da;
     return b.score-a.score;
   });
-
-  // STEP 3: Max 3 per sector, max 25 total
-  var secCt={}, result=[];
-  for(var i=0;i<qualified.length;i++){
-    var s=qualified[i], sec=s.sector||'Other';
-    if(!secCt[sec]) secCt[sec]=0;
-    if(secCt[sec]>=3) continue;
-    secCt[sec]++;
-    result.push(s);
-    if(result.length>=25) break;
-  }
-  return result;
+  var sec={},res=[];
+  for(var i=0;i<q.length;i++){var s=q[i],k=s.sector||'X';if(!sec[k])sec[k]=0;if(sec[k]>=3)continue;sec[k]++;res.push(s);if(res.length>=25)break;}
+  return res;
 }
 
 function renderTop25() {
@@ -2371,9 +2330,8 @@ function renderTop25() {
   }
   var buys=selectTop25(allSignals,'buy');
   var sells=selectTop25(allSignals,'sell');
-  // Re-sort by user column if changed from default
-  if(top25SortBuy!=='score') buys.sort(function(a,b){return top25Sort(a,b,top25SortBuy);});
-  if(top25SortSell!=='score') sells.sort(function(a,b){return top25Sort(a,b,top25SortSell);});
+  if(top25SortBuy!=='score')buys.sort(function(a,b){return top25Sort(a,b,top25SortBuy);});
+  if(top25SortSell!=='score')sells.sort(function(a,b){return top25Sort(a,b,top25SortSell);});
 
   // Update header threshold hint
   ['Buy','Sell'].forEach(t=>{
@@ -2386,12 +2344,11 @@ function renderTop25() {
   });
   const row=(s,i)=>{
     const kStr=s.kelly_pct!==null?s.kelly_pct+'%':'—';
-    const goodFlag=s.is_good_combo?'<span class="b b-bull" style="font-size:7px">EV+</span> '
-      :(s.signal==='B1-MOM'&&s.band_zone!=='rej_lo'?'<span class="b b-bear" style="font-size:7px">EV-</span> ':'');
-    var aln=s.regime_alignment||'neutral';
-    var alignBadge=aln==='aligned'?'<span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3);font-size:7px">WITH</span> '
-      :aln==='contrarian'?'<span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3);font-size:7px">CONTRA</span> '
-      :aln==='partial'?'<span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3);font-size:7px">PART</span> '
+    const goodFlag=s.is_good_combo?'<span class="b b-bull" style="font-size:7px">EV+</span> ':'';
+    var _a=s.regime_alignment||'neutral';
+    var alignBadge=_a==='aligned'?'<span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3);font-size:7px">WITH</span> '
+      :_a==='contrarian'?'<span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3);font-size:7px">CONTRA</span> '
+      :_a==='partial'?'<span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3);font-size:7px">PART</span> '
       :'';
     const retStr=s.ret_250!==null?(s.ret_250>0?'+':'')+s.ret_250+'%':'—';
     const bz=bandZoneBadge(s.band_primary||s.band_100||s.band_60||s.band_zone);
@@ -2552,12 +2509,8 @@ function renderPFCards() {
       const sp=s.pnl_pct||0;
       const sc=sp>0?'c-bull':sp<0?'c-bear':'c-dim';
       const stBadge=s.status==='TP'?'<span class="b b-bull">TP</span>':s.status==='SL'?'<span class="b b-bear">SL</span>':'<span class="b b-open">OPEN</span>';
-      var pa=s.regime_alignment||'neutral';
-      var pb=pa==='aligned'?'<span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3);font-size:7px">WITH</span> '
-        :pa==='contrarian'?'<span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3);font-size:7px">CONTRA</span> '
-        :pa==='partial'?'<span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3);font-size:7px">PART</span> '
-        :'';
-      return`<tr><td>${pb}${s.symbol}</td><td>${s.sector.substring(0,12)}</td>
+      var _pa=s.regime_alignment||'neutral';var _pb=_pa==='aligned'?'<span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3);font-size:7px">WITH</span> ':_pa==='contrarian'?'<span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3);font-size:7px">CONTRA</span> ':_pa==='partial'?'<span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3);font-size:7px">PART</span> ':'';
+      return`<tr><td>${_pb}${s.symbol}</td><td>${s.sector.substring(0,12)}</td>
         <td>${sigBadge(s.signal)}</td>
         <td>₹${s.current_price?s.current_price.toFixed(1):s.cmp.toFixed(1)}</td>
         <td class="${sc}">${sp>0?'+':''}${sp}%</td>
@@ -2568,13 +2521,7 @@ function renderPFCards() {
       <div class="pf-hdr">
         <div>
           <div class="pf-title ${pf.type==='buy'?'c-bull':'c-bear'}">${pf.type.toUpperCase()} Portfolio · ${pf.day}</div>
-          <div class="pf-meta">${pf.stocks.length} stocks · ${pf.sectors?pf.sectors.length+' sectors · ':''} Score≥${pf.minScoreUsed||'—'} · ${pf.regimeAtCreation?pf.regimeAtCreation.toUpperCase()+' regime · ':''} Dissolves ${pf.dissolveDay} ${pf.dissolveDate} &nbsp;·&nbsp; ${(function(){
-    var s=pf.alignmentSummary||{};var parts=[];
-    if(s.aligned>0)parts.push('<span style="color:var(--bull)">'+s.aligned+' WITH</span>');
-    if(s.partial>0)parts.push('<span style="color:var(--amber)">'+s.partial+' PART</span>');
-    if(s.contrarian>0)parts.push('<span style="color:var(--bear)">'+s.contrarian+' CONTRA</span>');
-    return parts.join(' \xb7 ')||'';
-  })()}</div>
+          <div class="pf-meta">${pf.stocks.length} stocks · ${pf.sectors?pf.sectors.length+' sectors · ':''} Score≥${pf.minScoreUsed||'—'} · ${pf.regimeAtCreation?pf.regimeAtCreation.toUpperCase()+' regime · ':''} Dissolves ${pf.dissolveDay} ${pf.dissolveDate} · ${(function(){var s=pf.alignmentSummary||{},p=[];if(s.aligned>0)p.push('<span style="color:var(--bull)">'+s.aligned+' WITH</span>');if(s.partial>0)p.push('<span style="color:var(--amber)">'+s.partial+' PART</span>');if(s.contrarian>0)p.push('<span style="color:var(--bear)">'+s.contrarian+' CONTRA</span>');return p.join(' · ')||'';})()} </div>
         </div>
         <div style="text-align:right">
           <div class="pf-stat"><label>P&L</label><span class="${pnlClass}">${pf.totalPnlPct>=0?'+':''}${pf.totalPnlPct}%</span></div>
@@ -3057,7 +3004,7 @@ function switchIntel(name){
 }
 function renderIntelActive(){const active=document.querySelector('.i-panel.active');if(active)renderIntelTab(active.id.replace('intel-',''))}
 function renderIntelTab(name){
-  const map={m6:renderM6,m1:renderM1,m4:renderM4,m2:renderM2,m3:renderM3,m5:renderM5,m7:renderM7,tpsl:renderTPSL,mb:renderMB,sectors:renderSectors,ledger:renderLedger,retcorr:renderRetCorr,wrref:function(){},regimexperf:function(){renderRegimeCrossPerf();}};
+  const map={m6:renderM6,m1:renderM1,m4:renderM4,m2:renderM2,m3:renderM3,m5:renderM5,m7:renderM7,tpsl:renderTPSL,mb:renderMB,sectors:renderSectors,ledger:renderLedger,retcorr:renderRetCorr, wrref:function(){},regimexperf:function(){renderRegimeCrossPerf();}};
   if(map[name])map[name]();
 }
 
@@ -3134,146 +3081,71 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
   // Render portfolio page from stored data
   if(dailyPortfolios.length||dpfArchive.length)renderPage2();
 })();
-// ── Regime Cross-Performance: how signals perform WITH vs AGAINST market ──
-function renderRegimeCrossPerf() {
-  var el=document.getElementById('intel-regimexperf');
-  if(!el) return;
-  var ledger=loadLedger();
-  var resolved=ledger.filter(function(r){return r.status==='win'||r.status==='loss';});
-  var BK=63.6; // breakeven WR
-
-  if(resolved.length<5){
-    el.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text2)"><div style="font-size:28px;opacity:.2;margin-bottom:10px">&#x1F4CA;</div>Regime cross-performance builds from resolved trades.<br>Need at least 5 — currently '+resolved.length+'.<br><span style="color:var(--text3);margin-top:6px;display:block">Data accumulates as portfolios dissolve (TP/SL hit or 4-day hold ends)</span></div>';
-    return;
-  }
-
-  // Group by regime_at_entry × buy/sell direction
-  var byDir={buy:{aligned:{w:0,t:0,p:[]},partial:{w:0,t:0,p:[]},contrarian:{w:0,t:0,p:[]},neutral:{w:0,t:0,p:[]}},
-             sell:{aligned:{w:0,t:0,p:[]},partial:{w:0,t:0,p:[]},contrarian:{w:0,t:0,p:[]},neutral:{w:0,t:0,p:[]}}};
-  var bySigAln={};
-  var byIdx={};
-
-  resolved.forEach(function(r){
-    var aln=r.regime_at_entry||'neutral';
-    var isBuy=r.signal&&r.signal.startsWith('B');
-    var dir=isBuy?'buy':'sell';
-    var isWin=r.status==='win';
-    var pnl=r.pnl_pct||0;
-    if(byDir[dir]&&byDir[dir][aln]){byDir[dir][aln].t++;if(isWin)byDir[dir][aln].w++;byDir[dir][aln].p.push(pnl);}
-    var key=(r.signal||'?')+'|'+aln;
-    if(!bySigAln[key])bySigAln[key]={w:0,t:0,p:[]};
-    bySigAln[key].t++;if(isWin)bySigAln[key].w++;bySigAln[key].p.push(pnl);
-    var ia=r.index_alignments_at_entry||{};
-    var iks=Object.keys(ia);
-    for(var ki=0;ki<iks.length;ki++){
-      var ik=iks[ki],iv=ia[ik];
-      if(!byIdx[ik])byIdx[ik]={with:{w:0,t:0},against:{w:0,t:0},neutral:{w:0,t:0}};
-      if(byIdx[ik][iv]){byIdx[ik][iv].t++;if(isWin)byIdx[ik][iv].w++;}
-    }
+function renderRegimeCrossPerf(){
+  var el=document.getElementById('intel-regimexperf');if(!el)return;
+  var ledger=loadLedger(),res=ledger.filter(function(r){return r.status==='win'||r.status==='loss';});
+  var BK=63.6;
+  if(res.length<5){el.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text2)"><div style="font-size:28px;opacity:.2;margin-bottom:10px">&#x1F4CA;</div>Builds from resolved trades. Need 5+ — currently '+res.length+'.<br><span style="color:var(--text3)">Accumulates as portfolios dissolve</span></div>';return;}
+  var D={buy:{aligned:{w:0,t:0},partial:{w:0,t:0},contrarian:{w:0,t:0},neutral:{w:0,t:0}},
+         sell:{aligned:{w:0,t:0},partial:{w:0,t:0},contrarian:{w:0,t:0},neutral:{w:0,t:0}}};
+  var SA={},IX={};
+  res.forEach(function(r){
+    var aln=r.regime_at_entry||'neutral',isBuy=r.signal&&r.signal.startsWith('B'),dir=isBuy?'buy':'sell',win=r.status==='win';
+    if(D[dir]&&D[dir][aln]){D[dir][aln].t++;if(win)D[dir][aln].w++;}
+    var k=(r.signal||'?')+'|'+aln;if(!SA[k])SA[k]={w:0,t:0};SA[k].t++;if(win)SA[k].w++;
+    var ia=r.index_alignments_at_entry||{},iks=Object.keys(ia);
+    for(var ki=0;ki<iks.length;ki++){var ik=iks[ki],iv=ia[ik];if(!IX[ik])IX[ik]={with:{w:0,t:0},against:{w:0,t:0},neutral:{w:0,t:0}};if(IX[ik][iv]){IX[ik][iv].t++;if(win)IX[ik][iv].w++;}}
   });
-
   function wr(o){return o.t>0?Math.round(o.w/o.t*100):null;}
-  function ap(arr){return arr.length>0?parseFloat((arr.reduce(function(a,b){return a+b;},0)/arr.length).toFixed(2)):null;}
-  function wrBar(w,n){
-    if(w===null) return '<span style="color:var(--text3)">—</span>';
-    var col=w>=BK?'var(--bull)':w>=54?'var(--amber)':'var(--bear)';
-    return '<div style="display:flex;align-items:center;gap:5px"><div style="width:70px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+Math.min(w,100)+'%;background:'+col+';border-radius:3px"></div></div><strong style="color:'+col+'">'+w+'%</strong><span style="color:var(--text3);font-size:8px">n='+(n||0)+'</span></div>';
+  function bar(w,t){
+    if(w===null)return'<span style="color:var(--text3)">—</span>';
+    var c=w>=BK?'var(--bull)':w>=54?'var(--amber)':'var(--bear)';
+    return'<div style="display:flex;align-items:center;gap:5px"><div style="width:70px;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+Math.min(w,100)+'%;background:'+c+';border-radius:3px"></div></div><strong style="color:'+c+'">'+w+'%</strong><span style="color:var(--text3);font-size:8px">n='+(t||0)+'</span></div>';
   }
-  function grade(w){
-    if(w===null) return '—';
-    return w>=BK?'<span class="b b-bull">EV+</span>':'<span class="b b-bear">EV-</span>';
-  }
-
-  var ALNS=[['aligned','With market','Signal aligns with ALL index trends'],
-            ['partial','Partial','NSEI agrees — sub-indices mixed'],
-            ['contrarian','Contrarian','Signal AGAINST overall market trend'],
-            ['neutral','Neutral','Mixed/flat regime']];
+  function grade(w){return w===null?'—':w>=BK?'<span class="b b-bull">EV+</span>':'<span class="b b-bear">EV-</span>';}
+  var ALNS=[['aligned','With Market','All indices agree'],['partial','Partial','NSEI agrees, sub-indices mixed'],['contrarian','Contrarian','Against overall trend'],['neutral','Neutral','Flat/mixed regime']];
   var SIGS=['B2','B3','B1-OS','B1-MOM','S2','S3','S1-OB','S1-MOM'];
-
   var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
-
-  // ── Buy × Alignment ──
-  html+='<div><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">BUY SIGNALS × MARKET ALIGNMENT</div>';
-  html+='<div class="tw"><table><thead><tr><th>Alignment</th><th>Win Rate</th><th>Avg P&L</th><th>Grade</th></tr></thead><tbody>';
-  ALNS.forEach(function(row){
-    var aln=row[0],label=row[1],tip=row[2];
-    var o=byDir.buy[aln];
-    var w=wr(o),a=ap(o.p);
-    var bg=aln==='contrarian'?'background:rgba(220,38,38,.04)':'';
-    html+='<tr style="'+bg+'" title="'+tip+'"><td style="font-family:var(--mono);font-size:9px"><span style="color:'+(aln==='aligned'?'var(--bull)':aln==='contrarian'?'var(--bear)':aln==='partial'?'var(--amber)':'var(--text2)')+'">'+label+'</span></td><td>'+wrBar(w,o.t)+'</td><td style="color:'+(a!==null?(a>=0?'var(--bull)':'var(--bear)'):'var(--text3)')+'">'+(a!==null?(a>=0?'+':'')+a+'%':'—')+'</td><td>'+grade(w)+'</td></tr>';
-  });
-  html+='</tbody></table></div>';
-  // Contrarian insight
-  var cbWR=wr(byDir.buy.contrarian);
-  if(cbWR!==null){
-    html+='<div class="ins '+(cbWR>=BK?'bull':'bear')+'" style="margin-top:8px;font-size:9px"><strong>'+(cbWR>=BK?'✓ Contrarian buys WORK ('+cbWR+'%)':'⚠ Contrarian buys underperform ('+cbWR+'%)')+'</strong> vs '+BK+'% breakeven. '+(cbWR>=BK?'Individual stocks rally in any regime. Keep taking EV+ buy signals regardless of NSEI direction.':'Market regime IS hurting buy signals. Prefer aligned/partial setups.')+'</div>';
-  } else {
-    html+='<div class="ins" style="margin-top:8px;font-size:9px">Not enough contrarian buy data yet — builds as portfolios dissolve.</div>';
-  }
-  html+='</div>';
-
-  // ── Sell × Alignment ──
-  html+='<div><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SELL SIGNALS × MARKET ALIGNMENT</div>';
-  html+='<div class="tw"><table><thead><tr><th>Alignment</th><th>Win Rate</th><th>Avg P&L</th><th>Grade</th></tr></thead><tbody>';
-  ALNS.forEach(function(row){
-    var aln=row[0],label=row[1],tip=row[2];
-    var o=byDir.sell[aln];
-    var w=wr(o),a=ap(o.p);
-    var bg=aln==='contrarian'?'background:rgba(220,38,38,.04)':'';
-    html+='<tr style="'+bg+'" title="'+tip+'"><td style="font-family:var(--mono);font-size:9px"><span style="color:'+(aln==='aligned'?'var(--bull)':aln==='contrarian'?'var(--bear)':aln==='partial'?'var(--amber)':'var(--text2)')+'">'+label+'</span></td><td>'+wrBar(w,o.t)+'</td><td style="color:'+(a!==null?(a>=0?'var(--bull)':'var(--bear)'):'var(--text3)')+'">'+(a!==null?(a>=0?'+':'')+a+'%':'—')+'</td><td>'+grade(w)+'</td></tr>';
-  });
-  html+='</tbody></table></div>';
-  var csWR=wr(byDir.sell.contrarian);
-  if(csWR!==null){
-    html+='<div class="ins '+(csWR>=BK?'bull':'bear')+'" style="margin-top:8px;font-size:9px"><strong>'+(csWR>=BK?'✓ Contrarian sells WORK ('+csWR+'%)':'⚠ Contrarian sells weaker ('+csWR+'%)')+'</strong>. '+(csWR>=BK?'Individual stocks break down in ANY regime. Take EV+ sell signals always.':'Bull market absorbs sell signals. Consider reducing contrarian sell size.')+'</div>';
-  } else {
-    html+='<div class="ins" style="margin-top:8px;font-size:9px">Not enough contrarian sell data yet.</div>';
-  }
-  html+='</div></div>';
-
-  // ── Per-Index Alignment ──
-  var idxKeys=Object.keys(byIdx).sort();
-  if(idxKeys.length>0){
-    html+='<div style="margin-bottom:12px"><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">WIN RATE — WITH vs AGAINST EACH INDEX</div>';
-    html+='<div class="tw"><table><thead><tr><th>Index</th><th>WITH trend WR</th><th>AGAINST trend WR</th><th>Edge (WITH − AGAINST)</th></tr></thead><tbody>';
-    idxKeys.forEach(function(idx){
-      var d=byIdx[idx],wW=wr(d.with),wA=wr(d.against);
-      var edge=(wW!==null&&wA!==null)?wW-wA:null;
-      var ec=edge===null?'var(--text3)':edge>10?'var(--bull)':edge>0?'var(--amber)':'var(--bear)';
-      html+='<tr><td style="font-family:var(--mono);font-weight:700;color:var(--bright)">'+idx+'</td><td>'+wrBar(wW,d.with.t)+'</td><td>'+wrBar(wA,d.against.t)+'</td><td style="font-family:var(--mono);font-weight:700;color:'+ec+'">'+(edge!==null?(edge>0?'+':'')+edge+'%':'—')+'</td></tr>';
+  ['buy','sell'].forEach(function(dir){
+    var isBuy=dir==='buy';
+    html+='<div><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">'+(isBuy?'BUY':'SELL')+' SIGNALS × MARKET ALIGNMENT</div>';
+    html+='<div class="tw"><table><thead><tr><th>Alignment</th><th>Win Rate</th><th>Grade</th></tr></thead><tbody>';
+    ALNS.forEach(function(row){
+      var aln=row[0],label=row[1],tip=row[2],o=D[dir][aln];
+      var w=wr(o),bg=aln==='contrarian'?'background:rgba(220,38,38,.04)':'';
+      var lc=aln==='aligned'?'var(--bull)':aln==='contrarian'?'var(--bear)':aln==='partial'?'var(--amber)':'var(--text2)';
+      html+='<tr style="'+bg+'" title="'+tip+'"><td style="font-family:var(--mono);font-size:9px;color:'+lc+'">'+label+'</td><td>'+bar(w,o.t)+'</td><td>'+grade(w)+'</td></tr>';
     });
+    html+='</tbody></table></div>';
+    var cw=wr(D[dir].contrarian);
+    if(cw!==null){
+      html+='<div class="ins '+(cw>=BK?'bull':'bear')+'" style="margin-top:8px;font-size:9px"><strong>'+(cw>=BK?'✓ Contrarian '+dir+'s WORK ('+cw+'%)':'⚠ Contrarian '+dir+'s underperform ('+cw+'%)')+'</strong> vs '+BK+'% breakeven. '+(cw>=BK?'NANDI always generates Top 25 buy + sell in ANY regime — keep taking them.':'Regime IS affecting signals — prefer aligned setups currently.')+'</div>';
+    }else{html+='<div class="ins" style="margin-top:8px;font-size:9px">Contrarian '+dir+' data builds from resolved trades.</div>';}
+    html+='</div>';
+  });
+  html+='</div>';
+  var iks2=Object.keys(IX).sort();
+  if(iks2.length>0){
+    html+='<div style="margin-bottom:12px"><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">WIN RATE — WITH vs AGAINST EACH INDEX</div>';
+    html+='<div class="tw"><table><thead><tr><th>Index</th><th>WITH trend</th><th>AGAINST trend</th><th>Edge</th></tr></thead><tbody>';
+    iks2.forEach(function(ik){var d=IX[ik],wW=wr(d.with),wA=wr(d.against),edge=(wW!==null&&wA!==null)?wW-wA:null,ec=edge===null?'var(--text3)':edge>10?'var(--bull)':edge>0?'var(--amber)':'var(--bear)';html+='<tr><td style="font-family:var(--mono);font-weight:700;color:var(--bright)">'+ik+'</td><td>'+bar(wW,d.with.t)+'</td><td>'+bar(wA,d.against.t)+'</td><td style="font-family:var(--mono);font-weight:700;color:'+ec+'">'+(edge!==null?(edge>0?'+':'')+edge+'%':'—')+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
-
-  // ── Signal × Regime Matrix ──
-  html+='<div style="margin-bottom:12px"><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SIGNAL TYPE × REGIME — WR MATRIX</div>';
+  html+='<div style="margin-bottom:12px"><div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SIGNAL × REGIME MATRIX</div>';
   html+='<div style="overflow-x:auto"><table class="corr-table"><thead><tr><th>Signal</th><th>Aligned</th><th>Partial</th><th>Contrarian</th><th>Neutral</th></tr></thead><tbody>';
   SIGS.forEach(function(sig){
-    html+='<tr><td style="font-family:var(--mono);font-weight:700">'+(sig.startsWith('B')?'<span style="color:var(--bull)">':'<span style="color:var(--bear)">')+sig+'</span></td>';
-    ['aligned','partial','contrarian','neutral'].forEach(function(aln){
-      var key=sig+'|'+aln,o=bySigAln[key]||{w:0,t:0};
-      var w=wr(o);
-      var cls=w===null?'cr-n':w>=70?'cr-sp':w>=60?'cr-mp':w>=50?'cr-n':'cr-sn';
-      html+='<td class="'+cls+'">'+(w!==null?w+'%<br><span style="font-size:7px;opacity:.6">n='+o.t+'</span>':'—')+'</td>';
-    });
+    html+='<tr><td style="font-family:var(--mono);font-weight:700;color:'+(sig.startsWith('B')?'var(--bull)':'var(--bear)')+'">'+sig+'</td>';
+    ['aligned','partial','contrarian','neutral'].forEach(function(aln){var o=SA[sig+'|'+aln]||{w:0,t:0},w=wr(o),cl=w===null?'cr-n':w>=70?'cr-sp':w>=60?'cr-mp':w>=50?'cr-n':'cr-sn';html+='<td class="'+cl+'">'+(w!==null?w+'%<br><span style="font-size:7px;opacity:.6">n='+o.t+'</span>':'—')+'</td>';});
     html+='</tr>';
   });
   html+='</tbody></table></div>';
-  html+='<div style="font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:5px">Breakeven: '+BK+'% (TP=2% SL=3.5% R:R=1:1.75) · '+resolved.length+' resolved trades · Updates automatically as portfolios dissolve</div></div>';
-
-  // ── Summary ──
-  html+='<div style="background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(13,148,136,.04));border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px">';
-  html+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--bright);margin-bottom:8px">KEY INSIGHT — ALWAYS TAKE BOTH SIDES IN ANY REGIME</div>';
-  html+='<div style="font-family:var(--mono);font-size:9px;color:var(--text);line-height:1.8">';
-  html+='<div>📈 <strong style="color:var(--bull)">BUY signals:</strong> ';
-  var baWR=wr(byDir.buy.aligned),bcWR=wr(byDir.buy.contrarian);
-  html+=(baWR!==null?'Aligned WR='+baWR+'%':'Aligned — no data')+' · '+(bcWR!==null?'Contrarian WR='+bcWR+'%':'Contrarian — no data')+'</div>';
-  html+='<div>📉 <strong style="color:var(--bear)">SELL signals:</strong> ';
-  var saWR=wr(byDir.sell.aligned),scWR=wr(byDir.sell.contrarian);
-  html+=(saWR!==null?'Aligned WR='+saWR+'%':'Aligned — no data')+' · '+(scWR!==null?'Contrarian WR='+scWR+'%':'Contrarian — no data')+'</div>';
-  html+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--text2)">NANDI always generates Top 25 Buy + Top 25 Sell in EVERY regime. Regime alignment is shown as WITH/PART/CONTRA badge — you decide whether to take contrarian positions based on your own data above. The system never blocks signals based on regime.</div>';
-  html+='</div></div>';
-
+  html+='<div style="font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:5px">Breakeven: '+BK+'% · '+res.length+' resolved trades · Builds as portfolios dissolve</div></div>';
+  html+='<div style="background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(13,148,136,.04));border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;font-family:var(--mono);font-size:9px;color:var(--text)">';
+  html+='<div style="font-weight:700;color:var(--bright);margin-bottom:8px">KEY PRINCIPLE — NANDI ALWAYS SHOWS TOP 25 BUY + SELL IN EVERY REGIME</div>';
+  html+='<div>NANDI never suppresses signals due to market regime. In any bull/bear/mixed market there will always be 25 strong buy setups AND 25 strong sell setups among 700 stocks.</div>';
+  html+='<div style="margin-top:6px">Each signal now shows: <span class="b" style="background:rgba(5,150,105,.15);color:var(--bull);border-color:rgba(5,150,105,.3)">WITH</span> aligned with all indices · <span class="b" style="background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(217,119,6,.3)">PART</span> NSEI agrees, sub-indices mixed · <span class="b" style="background:rgba(220,38,38,.12);color:var(--bear);border-color:rgba(220,38,38,.3)">CONTRA</span> against overall trend</div>';
+  html+='<div style="margin-top:6px;color:var(--text2)">WITH MKT signals = highest overnight conviction. CONTRA signals = individual stock story — can still be profitable (this panel tracks your actual WR for each).</div>';
+  html+='</div>';
   el.innerHTML=html;
 }
 
