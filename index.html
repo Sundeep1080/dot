@@ -763,12 +763,12 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
     <div class="nifty-card"><label>HMA(9) Slope</label><span class="nv" id="nfHMA9">—</span></div>
     <div class="nifty-card"><label>HMA(9) vs HMA(10)</label><span class="nv" id="nfHMACross">—</span></div>
     <div class="nifty-card"><label>Regime</label><span class="nv" id="nfRegime">—</span></div>
-    <div class="nifty-card"><label>Candles (7min)</label><span class="nv" id="nfCandles">—</span></div>
+    <div class="nifty-card"><label>Candles (5min)</label><span class="nv" id="nfCandles">—</span></div>
   </div>
 
   <!-- HMA STATUS -->
   <div class="card" style="margin-bottom:10px">
-    <div class="ct"><i class="fas fa-wave-square"></i> HMA(9/10) Status on 7-Min Chart</div>
+    <div class="ct"><i class="fas fa-wave-square"></i> HMA(9/10) Status on 5-Min Chart</div>
     <div class="hma-row" id="niftyHMARow">
       <span class="hma-pill hma-flat">Connect Kite to load</span>
     </div>
@@ -3117,7 +3117,7 @@ function buildRegimePanel() {
   const ovMap = {
     full:    ['ro-full',    'fas fa-circle-check',          '✅ FULL BULL — All indices green. Min score: 60'],
     mixed:   ['ro-caution', 'fas fa-triangle-exclamation',  '⚠️ MIXED SIGNALS — Indices disagree. Min score: 70'],
-    caution: ['ro-caution', 'fas fa-triangle-exclamation',  '⚠️ CAUTION — Weak regime. Min score: 75'],
+    caution: ['ro-caution', 'fas fa-triangle-exclamation',  '⚠️ CAUTION — Weak regime. Min score: 65'],
     bear:    ['ro-bear',    'fas fa-circle-xmark',          '🔴 BEAR REGIME — Only 85+ scores. Prefer SELL.'],
   };
   const [cls, ico, txt] = ovMap[overallRegime] || ovMap.caution;
@@ -3164,10 +3164,10 @@ function buildRegimePanel() {
 
 function getRegimeThreshold() {
   if(overallRegime==='full')    return 60;
-  if(overallRegime==='mixed')   return 70;
-  if(overallRegime==='caution') return 75;
-  if(overallRegime==='bear')    return 85;
-  return 70;
+  if(overallRegime==='mixed')   return 65;
+  if(overallRegime==='caution') return 65;
+  if(overallRegime==='bear')    return 75;
+  return 65;
 }
 
 function toggleRegimeDetail() {
@@ -3644,31 +3644,44 @@ function calcRSI(closes, period=14) {
   return Math.round(100 - 100/(1+rs));
 }
 
-async function fetchNiftyCandles(intervalMins=7) {
+async function fetchNiftyCandles(intervalMins=5) {
   if(!zdLiveMode) return null;
   const now = new Date();
   const from = new Date(); from.setHours(9,15,0,0);
-  const fmt = d => d.toISOString().split('T')[0]+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':00';
-  const url = `${ZD_WORKER}/kite/instruments/historical/${NIFTY_TOKEN}/${intervalMins}minute?from=${fmt(from)}&to=${fmt(now)}&continuous=0&oi=0`;
+  const pad = n=>String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+  const fromStr = fmt(from);
+  const toStr = fmt(now);
+  const url = `${ZD_WORKER}/kite/instruments/historical/${NIFTY_TOKEN}/5minute?from=${fromStr}&to=${toStr}&continuous=0&oi=0`;
+  zdLog('Nifty candle URL: '+url.replace(ZD_WORKER,'[worker]'));
   try {
     const res = await fetch(url, {
       headers:{'X-Kite-Version':'3','Authorization':`token ${zdApiKey}:${zdToken}`}
     });
     const j = await res.json();
-    if(j.data && j.data.candles) return j.data.candles;
-  } catch(e) { zdLog('Nifty candle fetch error: '+e.message); }
+    zdLog('Nifty candle response status: '+res.status+' candles: '+(j.data&&j.data.candles?j.data.candles.length:'none')+' msg:'+(j.message||'ok'));
+    if(j.data && j.data.candles && j.data.candles.length>0) return j.data.candles;
+    document.getElementById('niftyLastUpdate').textContent = 'API error: '+(j.message||'No candles returned');
+  } catch(e) {
+    zdLog('Nifty candle fetch error: '+e.message);
+    document.getElementById('niftyLastUpdate').textContent = 'Fetch error: '+e.message;
+  }
   return null;
 }
 
 async function fetchNiftyLTP() {
   if(!zdLiveMode) return null;
   try {
-    const res = await fetch(`${ZD_WORKER}/kite/quote/ltp?NSE:NIFTY+50`, {
+    const res = await fetch(`${ZD_WORKER}/kite/quote/ltp?i=${encodeURIComponent('NSE:NIFTY 50')}`, {
       headers:{'X-Kite-Version':'3','Authorization':`token ${zdApiKey}:${zdToken}`}
     });
     const j = await res.json();
-    return j.data && j.data['NSE:NIFTY 50'] ? j.data['NSE:NIFTY 50'].last_price : null;
-  } catch(e) { return null; }
+    if(j.data){
+      const key=Object.keys(j.data)[0];
+      return key?j.data[key].last_price:null;
+    }
+  } catch(e) { zdLog('Nifty LTP error: '+e.message); }
+  return null;
 }
 
 async function refreshNiftyDash() {
@@ -3748,7 +3761,7 @@ async function refreshNiftyDash() {
   document.getElementById('nfHMACross').textContent=hmaCross.toUpperCase();
   document.getElementById('nfHMACross').className='nv '+(hmaCross==='bullish'?'c-bull':'c-bear');
   document.getElementById('nfRegime').textContent=currentRegime||'—';
-  document.getElementById('nfCandles').textContent=candles.length+' (7min)';
+  document.getElementById('nfCandles').textContent=candles.length+' (5min)';
 
   const hmaRow = document.getElementById('niftyHMARow');
   hmaRow.innerHTML=`
