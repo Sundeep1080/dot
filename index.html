@@ -758,8 +758,8 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
   <div class="nifty-grid" id="niftyStatsGrid">
     <div class="nifty-card"><label>Nifty CMP</label><span class="nv c-bright" id="nfCmp">—</span></div>
     <div class="nifty-card"><label>Day Change</label><span class="nv" id="nfChg">—</span></div>
-    <div class="nifty-card"><label>vs Prev High</label><span class="nv" id="nfVsPDH">—</span></div>
-    <div class="nifty-card"><label>RSI (15min)</label><span class="nv" id="nfRSI">—</span></div>
+    <div class="nifty-card"><label>vs PDH</label><span class="nv" id="nfVsPDH">—</span></div>
+    <div class="nifty-card"><label>RSI (14)</label><span class="nv" id="nfRSI">—</span></div>
     <div class="nifty-card"><label>HMA(9) Slope</label><span class="nv" id="nfHMA9">—</span></div>
     <div class="nifty-card"><label>HMA(9) vs HMA(10)</label><span class="nv" id="nfHMACross">—</span></div>
     <div class="nifty-card"><label>Regime</label><span class="nv" id="nfRegime">—</span></div>
@@ -3590,47 +3590,36 @@ const NIFTY_TOKEN = '256265'; // NSE:NIFTY 50 instrument token
 let _niftyAutoInterval = null;
 let _niftyCandles = [];
 let _pfAlertShown = false;
+let _niftyPDH = null, _niftyPDL = null; // previous day high/low
 
-// HMA calculation: WMA of (2×WMA(n/2) − WMA(n)), smoothed by WMA(√n)
-function wma(arr, period) {
+// WMA helper for Nifty intraday series (different signature from main wma)
+function nWMA(arr, period) {
   if(arr.length < period) return null;
-  const slice = arr.slice(-period);
+  const sl = arr.slice(-period);
   let num = 0, den = 0;
-  for(let i = 0; i < period; i++) { num += (i+1)*slice[i]; den += (i+1); }
+  for(let i = 0; i < period; i++) { num += (i+1)*sl[i]; den += (i+1); }
   return num / den;
 }
 
-function calcHMA(closes, period) {
-  const half = Math.floor(period/2);
-  const sqrtP = Math.round(Math.sqrt(period));
-  const hmaRaw = [];
-  for(let i = period-1; i < closes.length; i++) {
-    const slice = closes.slice(0, i+1);
-    const w1 = wma(slice, half);
-    const w2 = wma(slice, period);
-    if(w1 !== null && w2 !== null) hmaRaw.push(2*w1 - w2);
-  }
-  if(hmaRaw.length < sqrtP) return null;
-  return wma(hmaRaw, sqrtP);
-}
-
+// HMA series for intraday candles — returns array of values
 function calcHMASeries(closes, period) {
   const half = Math.floor(period/2);
   const sqrtP = Math.round(Math.sqrt(period));
   const raw = [];
   for(let i = period-1; i < closes.length; i++) {
     const sl = closes.slice(0, i+1);
-    const w1 = wma(sl, half), w2 = wma(sl, period);
+    const w1 = nWMA(sl, half), w2 = nWMA(sl, period);
     if(w1!==null && w2!==null) raw.push(2*w1 - w2);
   }
   const series = [];
   for(let i = sqrtP-1; i < raw.length; i++) {
-    series.push(wma(raw.slice(0,i+1), sqrtP));
+    series.push(nWMA(raw.slice(0,i+1), sqrtP));
   }
   return series;
 }
 
-function calcRSI(closes, period=14) {
+// RSI for intraday — returns single scalar (not array)
+function calcNiftyRSI(closes, period=14) {
   if(closes.length < period+1) return null;
   const sl = closes.slice(-(period+1));
   let gains=0, losses=0;
@@ -3640,8 +3629,7 @@ function calcRSI(closes, period=14) {
   }
   const avgG=gains/period, avgL=losses/period;
   if(avgL===0) return 100;
-  const rs=avgG/avgL;
-  return Math.round(100 - 100/(1+rs));
+  return Math.round(100 - 100/(1+avgG/avgL));
 }
 
 async function fetchNiftyCandles(intervalMins=5) {
@@ -3687,134 +3675,203 @@ async function fetchNiftyLTP() {
 async function refreshNiftyDash() {
   if(!zdLiveMode){toast('Connect Kite first','err');return;}
   document.getElementById('niftyLastUpdate').textContent = 'Refreshing…';
-  const candles = await fetchNiftyCandles(7);
+
+  const candles = await fetchNiftyCandles(5);
   if(!candles || candles.length < 10) {
-    document.getElementById('niftyLastUpdate').textContent = 'No candle data — market may be closed';
+    document.getElementById('niftyLastUpdate').textContent = 'No candle data — market may be closed or before 9:30 AM';
     return;
   }
   _niftyCandles = candles;
-  const closes = candles.map(c=>c[4]);
-  const ltp = closes[closes.length-1];
-  const open = candles[0][1];
-  const chgPct = ((ltp-open)/open*100).toFixed(2);
-  const chgSign = chgPct>=0?'+':'';
 
-  // HMA calculations
-  const hma9series = calcHMASeries(closes, 9);
-  const hma10series = calcHMASeries(closes, 10);
-  const hma9 = hma9series.length ? hma9series[hma9series.length-1] : null;
-  const hma9prev = hma9series.length>1 ? hma9series[hma9series.length-2] : null;
-  const hma10 = hma10series.length ? hma10series[hma10series.length-1] : null;
+  const closes  = candles.map(c=>c[4]);
+  const highs   = candles.map(c=>c[2]);
+  const lows    = candles.map(c=>c[3]);
+  const ltp     = closes[closes.length-1];
+  const open    = candles[0][1];
+  const dayHigh = Math.max(...highs);
+  const dayLow  = Math.min(...lows);
+  const chgPct  = ((ltp-open)/open*100);
+  const chgStr  = (chgPct>=0?'+':'')+chgPct.toFixed(2)+'%';
 
-  // RSI on 15-min (use 7-min candles × 2 as approximation)
-  const rsi = calcRSI(closes, 14);
+  // ── PDH/PDL: store yesterday's high/low from first candle cluster
+  // Use session open as proxy if no prior data
+  if(!_niftyPDH) _niftyPDH = open;
+  if(!_niftyPDL) _niftyPDL = open * 0.985;
+  const vsPDH = ((_niftyPDH - ltp)/_niftyPDH*100).toFixed(2);
+  const pdhStr = ltp>=_niftyPDH ? `▲ ${Math.abs(vsPDH)}% above PDH` : `${Math.abs(vsPDH)}% below PDH`;
 
-  // HMA slope
-  const hmaSlope = hma9 && hma9prev ? hma9-hma9prev : null;
-  const hmaSlopeDir = hmaSlope===null?'unknown':hmaSlope>0.5?'bullish':hmaSlope<-0.5?'bearish':'flat';
+  // ── HMA(9) and HMA(10) series
+  const hma9s  = calcHMASeries(closes, 9);
+  const hma10s = calcHMASeries(closes, 10);
+  const hma9   = hma9s.length   ? hma9s[hma9s.length-1]   : null;
+  const hma9p  = hma9s.length>1 ? hma9s[hma9s.length-2]   : null;
+  const hma9p2 = hma9s.length>2 ? hma9s[hma9s.length-3]   : null;
+  const hma10  = hma10s.length  ? hma10s[hma10s.length-1]  : null;
+  const hma10p = hma10s.length>1? hma10s[hma10s.length-2]  : null;
 
-  // HMA cross
-  const hmaCross = (hma9&&hma10) ? (hma9>hma10?'bullish':'bearish') : 'unknown';
+  // ── HMA slope — is it decelerating?
+  const slope1 = (hma9&&hma9p)   ? hma9-hma9p   : null;
+  const slope2 = (hma9p&&hma9p2) ? hma9p-hma9p2 : null;
+  const slopeDecelerating = slope1!==null && slope2!==null && slope1 < slope2 && slope1>0;
+  const hmaSlopeDir = slope1===null?'unknown':slope1>0.3?'bullish':slope1<-0.3?'bearish':'flat';
 
-  // RSI level
-  const rsiLevel = rsi===null?'unknown':rsi>72?'overbought':rsi>55?'bullish':rsi>45?'neutral':rsi>28?'bearish':'oversold';
+  // ── HMA Cross detection
+  const hmaCross    = (hma9&&hma10)   ? (hma9>hma10 ?'bullish':'bearish') : 'unknown';
+  const hmaCrossNew = (hma9&&hma10&&hma9p&&hma10p) ?
+    (hma9>hma10 && hma9p<=hma10p ? 'fresh_bull' :
+     hma9<hma10 && hma9p>=hma10p ? 'fresh_bear' : 'hold') : 'hold';
 
-  // Fatigue score (0-4)
-  let fatigueScore = 0;
-  if(rsi && rsi>70) fatigueScore++;
-  if(hmaSlopeDir==='bearish') fatigueScore++;
-  if(hmaCross==='bearish') fatigueScore++;
-  if(parseFloat(chgPct)>1.5) fatigueScore++;
+  // ── RSI
+  const rsi = calcNiftyRSI(closes, 14);
+  const rsiLevel = rsi===null?'unknown':rsi>72?'overbought':rsi>60?'bullish':rsi>45?'neutral':rsi>28?'bearish':'oversold';
 
-  // Verdict
-  let verdictClass, verdictIcon, verdictTitle, verdictSub;
-  if(fatigueScore<=1 && hmaCross==='bullish') {
-    verdictClass='safe'; verdictIcon='✅';
-    verdictTitle='SAFE TO ENTER — Nifty is healthy';
-    verdictSub=`HMA(9) ${hmaSlopeDir} | RSI ${rsi||'—'} | Fatigue: ${fatigueScore}/4 — Consider same-day or next-morning entry`;
-  } else if(fatigueScore>=3 || hmaCross==='bearish') {
-    verdictClass='danger'; verdictIcon='🔴';
-    verdictTitle='AVOID SAME DAY — Nifty showing reversal signals';
-    verdictSub=`HMA cross ${hmaCross} | RSI ${rsi||'—'} | Fatigue: ${fatigueScore}/4 — Wait for next-morning HMA confirmation`;
+  // ── RSI Divergence (price new high but RSI lower = hidden weakness)
+  const recentCloses = closes.slice(-10);
+  const recentRSIs   = [];
+  for(let i=10; i<=closes.length; i++) recentRSIs.push(calcNiftyRSI(closes.slice(0,i),14));
+  const priceHigher  = recentCloses[recentCloses.length-1] > recentCloses[0];
+  const rsiLower     = recentRSIs.length>=2 && recentRSIs[recentRSIs.length-1]!==null && recentRSIs[0]!==null && recentRSIs[recentRSIs.length-1] < recentRSIs[0];
+  const bearDivergence = priceHigher && rsiLower;
+
+  // ── Tiredness Score (0-6)
+  let tired = 0;
+  if(rsi && rsi>70)             tired++;  // RSI overbought
+  if(hmaSlopeDir==='bearish')   tired++;  // HMA slope turning down
+  if(hmaCross==='bearish')      tired++;  // HMA bearish cross
+  if(chgPct>1.5)                tired++;  // Large up move — extended
+  if(slopeDecelerating)         tired++;  // Momentum fading
+  if(bearDivergence)            tired++;  // RSI divergence — hidden weakness
+
+  // ── Verdict
+  let vClass, vIcon, vTitle, vSub;
+  if(hmaCrossNew==='fresh_bull' && tired<=1){
+    vClass='safe'; vIcon='✅';
+    vTitle='FRESH HMA BULL CROSS — Strong entry signal';
+    vSub=`HMA(9) just crossed above HMA(10) | RSI ${rsi||'—'} | Tiredness ${tired}/6 — High probability setup`;
+  } else if(hmaCrossNew==='fresh_bear'){
+    vClass='danger'; vIcon='🔴';
+    vTitle='FRESH HMA BEAR CROSS — Avoid new longs';
+    vSub=`HMA(9) just crossed below HMA(10) | RSI ${rsi||'—'} | Exit existing positions, wait for reversal`;
+  } else if(tired>=4 || bearDivergence){
+    vClass='danger'; vIcon='🔴';
+    vTitle='NIFTY IS TIRED — Avoid same-day entry';
+    vSub=`Tiredness ${tired}/6${bearDivergence?' | ⚠ RSI Divergence detected':''} | HMA ${hmaSlopeDir}${slopeDecelerating?' | Momentum decelerating':''} — Wait next morning`;
+  } else if(tired>=2 || hmaSlopeDir==='flat'){
+    vClass='warn'; vIcon='⚠️';
+    vTitle='CAUTION — Mixed signals, selective entry only';
+    vSub=`Tiredness ${tired}/6 | HMA ${hmaSlopeDir} | RSI ${rsi||'—'} — Only highest conviction stocks (score 80+)`;
+  } else if(hmaCross==='bullish' && tired<=1){
+    vClass='safe'; vIcon='✅';
+    vTitle='SAFE TO ENTER — Nifty healthy';
+    vSub=`HMA(9) bullish | RSI ${rsi||'—'} | Tiredness ${tired}/6 — Same-day or next-morning entry valid`;
   } else {
-    verdictClass='warn'; verdictIcon='⚠️';
-    verdictTitle='CAUTION — Nifty mixed signals';
-    verdictSub=`HMA ${hmaSlopeDir} | RSI ${rsi||'—'} | Fatigue: ${fatigueScore}/4 — High conviction stocks only`;
+    vClass='warn'; vIcon='⚠️';
+    vTitle='NEUTRAL — Monitor before entering';
+    vSub=`HMA ${hmaSlopeDir} | RSI ${rsi||'—'} | Tiredness ${tired}/6`;
   }
 
-  // Update UI
+  // ── Update verdict
   document.getElementById('niftyVerdict').style.display='flex';
-  document.getElementById('niftyVerdict').className='nifty-verdict '+verdictClass;
-  document.getElementById('niftyVerdictIcon').textContent=verdictIcon;
-  document.getElementById('niftyVerdictTitle').textContent=verdictTitle;
-  document.getElementById('niftyVerdictSub').textContent=verdictSub;
+  document.getElementById('niftyVerdict').className='nifty-verdict '+vClass;
+  document.getElementById('niftyVerdictIcon').textContent=vIcon;
+  document.getElementById('niftyVerdictTitle').textContent=vTitle;
+  document.getElementById('niftyVerdictSub').textContent=vSub;
 
+  // ── Update stats grid
   document.getElementById('nfCmp').textContent='₹'+ltp.toFixed(1);
   document.getElementById('nfCmp').className='nv '+(chgPct>=0?'c-bull':'c-bear');
-  document.getElementById('nfChg').textContent=chgSign+chgPct+'%';
+  document.getElementById('nfChg').textContent=chgStr;
   document.getElementById('nfChg').className='nv '+(chgPct>=0?'c-bull':'c-bear');
-  document.getElementById('nfVsPDH').textContent=chgPct>0?'Above prev open':'Below prev open';
+  document.getElementById('nfVsPDH').textContent=pdhStr;
+  document.getElementById('nfVsPDH').className='nv '+(ltp>=_niftyPDH?'c-bull':'c-dim');
   document.getElementById('nfRSI').textContent=rsi||'—';
   document.getElementById('nfRSI').className='nv '+(rsi>70?'c-bear':rsi>55?'c-bull':'c-amb');
-  document.getElementById('nfHMA9').textContent=hmaSlopeDir.toUpperCase();
+  document.getElementById('nfHMA9').textContent=hmaSlopeDir.toUpperCase()+(slopeDecelerating?' ↘':'');
   document.getElementById('nfHMA9').className='nv '+(hmaSlopeDir==='bullish'?'c-bull':hmaSlopeDir==='bearish'?'c-bear':'c-dim');
-  document.getElementById('nfHMACross').textContent=hmaCross.toUpperCase();
+  document.getElementById('nfHMACross').textContent=hmaCross.toUpperCase()+(hmaCrossNew==='fresh_bull'?' ✦':hmaCrossNew==='fresh_bear'?' ✦':'');
   document.getElementById('nfHMACross').className='nv '+(hmaCross==='bullish'?'c-bull':'c-bear');
-  document.getElementById('nfRegime').textContent=currentRegime||'—';
+  document.getElementById('nfRegime').textContent=overallRegime||'—';
+  document.getElementById('nfRegime').className='nv c-amb';
   document.getElementById('nfCandles').textContent=candles.length+' (5min)';
 
+  // ── HMA status pills
   const hmaRow = document.getElementById('niftyHMARow');
-  hmaRow.innerHTML=`
-    <span class="hma-pill ${hmaSlopeDir==='bullish'?'hma-bull':hmaSlopeDir==='bearish'?'hma-bear':'hma-flat'}">HMA(9) Slope: ${hmaSlopeDir.toUpperCase()}</span>
-    <span class="hma-pill ${hmaCross==='bullish'?'hma-bull':'hma-bear'}">HMA(9) vs HMA(10): ${hmaCross.toUpperCase()}</span>
-    <span class="hma-pill ${rsiLevel==='overbought'?'hma-bear':rsiLevel==='bullish'?'hma-bull':'hma-flat'}">RSI(14): ${rsi||'—'} — ${rsiLevel.toUpperCase()}</span>
-    <span class="hma-pill ${fatigueScore>=3?'hma-bear':fatigueScore<=1?'hma-bull':'hma-flat'}">Fatigue Score: ${fatigueScore}/4</span>`;
+  if(hmaRow) hmaRow.innerHTML=`
+    <span class="hma-pill ${hmaSlopeDir==='bullish'?'hma-bull':hmaSlopeDir==='bearish'?'hma-bear':'hma-flat'}">
+      HMA(9) Slope: ${hmaSlopeDir.toUpperCase()}${slopeDecelerating?' ↘ Decelerating':''}
+    </span>
+    <span class="hma-pill ${hmaCross==='bullish'?'hma-bull':'hma-bear'}">
+      9 vs 10: ${hmaCross.toUpperCase()}${hmaCrossNew==='fresh_bull'?' 🔔 FRESH CROSS':hmaCrossNew==='fresh_bear'?' 🔔 FRESH CROSS':''}
+    </span>
+    <span class="hma-pill ${rsi>70?'hma-bear':rsi>55?'hma-bull':'hma-flat'}">RSI: ${rsi||'—'} — ${rsiLevel.toUpperCase()}</span>
+    ${bearDivergence?'<span class="hma-pill hma-bear">⚠ RSI DIVERGENCE — Hidden weakness</span>':''}
+    <span class="hma-pill ${tired>=4?'hma-bear':tired<=1?'hma-bull':'hma-flat'}">Tiredness: ${tired}/6</span>
+    <span class="hma-pill hma-flat">Day High: ₹${dayHigh.toFixed(1)} | Low: ₹${dayLow.toFixed(1)}</span>`;
 
-  document.getElementById('niftyHMADetail').innerHTML=`
-    HMA(9) current: <strong>${hma9?hma9.toFixed(2):'—'}</strong> &nbsp;|&nbsp;
+  const hmaDetail = document.getElementById('niftyHMADetail');
+  if(hmaDetail) hmaDetail.innerHTML=`
+    HMA(9): <strong>${hma9?hma9.toFixed(2):'—'}</strong> &nbsp;|&nbsp;
     HMA(10): <strong>${hma10?hma10.toFixed(2):'—'}</strong> &nbsp;|&nbsp;
-    Spread: <strong class="${hmaCross==='bullish'?'c-bull':'c-bear'}">${hma9&&hma10?(hma9-hma10).toFixed(2):'—'}</strong>
-    <br>Interpretation: ${hmaCross==='bullish'?'HMA(9) above HMA(10) — uptrend intact, entries valid':'HMA(9) below HMA(10) — downtrend forming, avoid new longs'}`;
+    Spread: <strong class="${hmaCross==='bullish'?'c-bull':'c-bear'}">${hma9&&hma10?(hma9-hma10).toFixed(2):'—'}</strong> &nbsp;|&nbsp;
+    Slope now vs prev: <strong>${slope1!==null?slope1.toFixed(2):'—'}</strong> vs <strong>${slope2!==null?slope2.toFixed(2):'—'}</strong>
+    ${slopeDecelerating?'<span class="c-bear"> ↘ Momentum decelerating</span>':''}
+    <br>
+    ${hmaCrossNew==='fresh_bull'?'<span class="c-bull">🔔 Fresh bullish cross this candle — strong entry signal</span>':
+      hmaCrossNew==='fresh_bear'?'<span class="c-bear">🔔 Fresh bearish cross this candle — exit longs</span>':
+      hmaCross==='bullish'?'<span class="c-bull">HMA(9) above HMA(10) — uptrend intact</span>':
+      '<span class="c-bear">HMA(9) below HMA(10) — avoid new longs</span>'}
+    ${bearDivergence?'<br><span class="c-bear">⚠ RSI Divergence: Price making new high but RSI declining — distribution pattern, be cautious</span>':''}`;
 
-  // Update stock entry tracker
-  updateEntryTracker(verdictClass, fatigueScore);
+  // ── Update entry tracker
+  updateEntryTracker(vClass, tired);
 
   const t=new Date();
   document.getElementById('niftyLastUpdate').textContent=`Updated ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
 }
 
-function updateEntryTracker(niftyVerdict, fatigueScore) {
+function updateEntryTracker(niftyVerdict, tiredScore) {
   const body = document.getElementById('entryTrackerBody');
   if(!body) return;
   const buys = allSignals.filter(s=>s.signal&&s.signal.startsWith('B')).sort((a,b)=>b.score-a.score).slice(0,50);
   if(!buys.length){body.innerHTML='<tr><td colspan="10" class="empty">No buy signals — load data first</td></tr>';return;}
+
   body.innerHTML = buys.map((s,i)=>{
-    // Per-stock HMA from its CMP trend (approximation using CMP vs TP/SL midpoint)
     const cmp=s.cmp, tp=s.tp, sl=s.sl;
-    const midpoint=(tp+sl)/2;
-    const stockMomentum=cmp>midpoint?'bullish':cmp<sl*1.01?'bearish':'flat';
-    // Entry decision combining Nifty + stock
+    // Per-stock momentum: where is CMP relative to TP/SL range
+    const range = tp - sl;
+    const pos = range>0 ? (cmp-sl)/range : 0.5;
+    const stockMom = pos>0.65?'bullish':pos<0.25?'bearish':'flat';
+
+    // Entry decision
     let entryBadge, sameDay;
-    if(niftyVerdict==='safe' && stockMomentum==='bullish'){
-      entryBadge='<span class="entry-badge eb-enter">✅ Enter Now</span>'; sameDay='Same Day';
-    } else if(niftyVerdict==='danger'){
-      entryBadge='<span class="entry-badge eb-avoid">🔴 Wait Next AM</span>'; sameDay='Next Morning';
-    } else if(stockMomentum==='bearish'){
-      entryBadge='<span class="entry-badge eb-avoid">⚠ Near SL</span>'; sameDay='Next Morning';
+    if(niftyVerdict==='safe' && stockMom==='bullish' && tiredScore<=1){
+      entryBadge='<span class="entry-badge eb-enter">✅ Enter Now</span>';
+      sameDay='Same Day';
+    } else if(niftyVerdict==='danger' || tiredScore>=4){
+      entryBadge='<span class="entry-badge eb-avoid">🔴 Next Morning</span>';
+      sameDay='Next Morning';
+    } else if(stockMom==='bearish'){
+      entryBadge='<span class="entry-badge eb-avoid">⚠ Near SL — Skip</span>';
+      sameDay='Skip';
+    } else if(niftyVerdict==='warn' && s.score>=80){
+      entryBadge='<span class="entry-badge eb-enter">✅ High Conv. OK</span>';
+      sameDay='Same Day';
     } else {
-      entryBadge='<span class="entry-badge eb-wait">⏳ Wait HMA Cross</span>'; sameDay='TBD';
+      entryBadge='<span class="entry-badge eb-wait">⏳ Wait HMA Cross</span>';
+      sameDay='TBD';
     }
+
     const orderBtn=zdLiveMode?`<button class="ob-buy" onclick="showOrderModal('${s.symbol}','BUY',${cmp},${tp},${sl},1)">▲ BUY</button>`:'—';
-    return`<tr>
+    return`<tr class="${sameDay==='Skip'?'ro-bear':''}">
       <td class="c-dim">${i+1}</td>
       <td><strong>${s.symbol}</strong></td>
       <td>${sigBadge(s.signal)}</td>
-      <td class="c-bull">${s.score}</td>
+      <td class="${s.score>=80?'c-bull':'c-amb'}">${s.score}</td>
       <td>₹${cmp.toFixed(1)}</td>
       <td class="c-bull">₹${tp.toFixed(1)}</td>
       <td class="c-bear">₹${sl.toFixed(1)}</td>
       <td>${entryBadge}</td>
-      <td style="font-family:var(--mono);font-size:9px;color:var(--text2)">${sameDay}</td>
+      <td style="font-family:var(--mono);font-size:9px;color:${sameDay==='Same Day'?'var(--bull)':sameDay==='Skip'?'var(--bear)':'var(--text2)'}">${sameDay}</td>
       <td>${orderBtn}</td>
     </tr>`;
   }).join('');
