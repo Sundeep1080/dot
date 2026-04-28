@@ -276,6 +276,27 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
 .sl-verdict.bad{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);color:#fca5a5}
 /* MB card enhancements */
 .mb-sig-row{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+/* NIFTY DASHBOARD */
+.nifty-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.nifty-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.nifty-card label{font-family:var(--mono);font-size:8px;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.nifty-card .nv{font-family:var(--mono);font-size:16px;font-weight:700}
+.nifty-verdict{border-radius:8px;padding:12px 16px;font-family:var(--mono);font-size:11px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.nifty-verdict.safe{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.3);color:#6ee7b7}
+.nifty-verdict.warn{background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.3);color:#fcd34d}
+.nifty-verdict.danger{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#fca5a5}
+.hma-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.hma-pill{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:20px;font-weight:700}
+.hma-bull{background:rgba(5,150,105,.15);color:var(--bull);border:1px solid rgba(5,150,105,.3)}
+.hma-bear{background:rgba(220,38,38,.1);color:var(--bear);border:1px solid rgba(220,38,38,.3)}
+.hma-flat{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.entry-badge{font-family:var(--mono);font-size:7px;padding:2px 6px;border-radius:3px;font-weight:700;white-space:nowrap}
+.eb-enter{background:rgba(5,150,105,.15);color:var(--bull);border:1px solid rgba(5,150,105,.3)}
+.eb-wait{background:rgba(217,119,6,.1);color:var(--amber);border:1px solid rgba(217,119,6,.3)}
+.eb-avoid{background:rgba(220,38,38,.1);color:var(--bear);border:1px solid rgba(220,38,38,.3)}
+.pf-alert-box{position:fixed;bottom:80px;right:16px;z-index:9000;background:var(--amber);color:#000;border-radius:10px;padding:14px 18px;font-family:var(--mono);font-size:11px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:8px;max-width:260px}
+.pf-alert-box button{background:#000;color:var(--amber);border:none;border-radius:5px;padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer}
+
 
 </style>
 </head>
@@ -403,6 +424,7 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
 <div class="page-tabs">
   <button class="page-tab active" onclick="switchPage('scanner')"><i class="fas fa-bolt"></i> Signal Scanner <span class="badge" id="badgeBuy">0</span></button>
   <button class="page-tab" onclick="switchPage('portfolio')"><i class="fas fa-layer-group"></i> Daily Portfolios <span class="badge" id="badgePF">0</span></button>
+  <button class="page-tab" onclick="switchPage('nifty')"><i class="fas fa-chart-line"></i> Nifty Entry Radar</button>
   <button class="page-tab" onclick="switchPage('intel')"><i class="fas fa-brain"></i> Intelligence Lab</button>
 </div>
 
@@ -709,6 +731,63 @@ tr.earn td:first-child{border-left:3px solid var(--pink)}
   </div>
 
 </div><!-- end intel page -->
+
+<!-- NIFTY ENTRY RADAR PAGE -->
+<div class="page" id="page-nifty">
+  <div class="card" style="margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div class="ct" style="margin:0"><i class="fas fa-chart-line"></i> Nifty Entry Radar — 3:00 PM Decision Engine</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--text2)" id="niftyLastUpdate">Not refreshing — connect Kite</span>
+        <button class="btn btn-g" onclick="refreshNiftyDash()" id="niftyRefreshBtn"><i class="fas fa-sync"></i> Refresh Now</button>
+        <button class="btn btn-a" onclick="toggleNiftyAuto()" id="niftyAutoBtn"><i class="fas fa-play"></i> Start 15s Auto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NIFTY VERDICT -->
+  <div id="niftyVerdict" class="nifty-verdict warn" style="display:none">
+    <span style="font-size:20px" id="niftyVerdictIcon">⏳</span>
+    <div>
+      <div id="niftyVerdictTitle" style="font-size:12px">Loading Nifty data…</div>
+      <div id="niftyVerdictSub" style="font-size:9px;opacity:.8;margin-top:2px"></div>
+    </div>
+  </div>
+
+  <!-- NIFTY STATS GRID -->
+  <div class="nifty-grid" id="niftyStatsGrid">
+    <div class="nifty-card"><label>Nifty CMP</label><span class="nv c-bright" id="nfCmp">—</span></div>
+    <div class="nifty-card"><label>Day Change</label><span class="nv" id="nfChg">—</span></div>
+    <div class="nifty-card"><label>vs Prev High</label><span class="nv" id="nfVsPDH">—</span></div>
+    <div class="nifty-card"><label>RSI (15min)</label><span class="nv" id="nfRSI">—</span></div>
+    <div class="nifty-card"><label>HMA(9) Slope</label><span class="nv" id="nfHMA9">—</span></div>
+    <div class="nifty-card"><label>HMA(9) vs HMA(10)</label><span class="nv" id="nfHMACross">—</span></div>
+    <div class="nifty-card"><label>Regime</label><span class="nv" id="nfRegime">—</span></div>
+    <div class="nifty-card"><label>Candles (7min)</label><span class="nv" id="nfCandles">—</span></div>
+  </div>
+
+  <!-- HMA STATUS -->
+  <div class="card" style="margin-bottom:10px">
+    <div class="ct"><i class="fas fa-wave-square"></i> HMA(9/10) Status on 7-Min Chart</div>
+    <div class="hma-row" id="niftyHMARow">
+      <span class="hma-pill hma-flat">Connect Kite to load</span>
+    </div>
+    <div id="niftyHMADetail" style="font-family:var(--mono);font-size:9px;color:var(--text2);line-height:1.8"></div>
+  </div>
+
+  <!-- STOCK ENTRY TRACKER -->
+  <div class="card">
+    <div class="ct"><i class="fas fa-crosshairs"></i> Stock HMA Entry Tracker — Today's Top 50 Buy Signals</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-bottom:8px">
+      Shows HMA(9) direction on 7-min chart for each BUY signal. Green = confirmed entry. Amber = wait for crossover.
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Symbol</th><th>Signal</th><th>Score</th><th>CMP</th><th>TP</th><th>SL</th><th>HMA Status</th><th>Same Day?</th><th>Order</th></tr></thead>
+      <tbody id="entryTrackerBody"><tr><td colspan="10" class="empty">Load signals then connect Kite to track entries</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+
 </div><!-- end shell -->
 
 <script>
@@ -2263,6 +2342,7 @@ function zdConnect() {
             const n=new Date(),c=new Date();c.setHours(15,30,0,0);
             if(n>c){clearInterval(zdInterval);zdInterval=null;if(autoBtn)autoBtn.innerHTML='<i class="fas fa-sync"></i> Auto OFF';zdLog('Auto stopped — market closed');return}
             zdFetchNow();
+            check3PMAlert();
           },30000);
           if(autoBtn)autoBtn.innerHTML='<i class="fas fa-sync fa-spin"></i> Auto ON';
           zdLog('Auto refresh started (30s) — runs until 15:30');
@@ -3145,6 +3225,7 @@ function switchPage(name){
   document.querySelectorAll('.page-tab').forEach(t=>{if((t.getAttribute('onclick')||'').includes("'"+name+"'"))t.classList.add('active')});
   if(name==='intel')renderIntelActive();
   if(name==='portfolio')renderPage2();
+  if(name==='nifty')renderNiftyPage();
 }
 function switchIntel(name){
   document.querySelectorAll('.i-panel').forEach(p=>p.classList.remove('active'));
@@ -3500,6 +3581,273 @@ function renderSLDash(){
     </tbody></table></div>`
     :'<div class="c-dim" style="font-family:var(--mono);font-size:9px">Need more trades per stock to identify sequence patterns.</div>'}
   </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// NIFTY ENTRY RADAR ENGINE
+// ═══════════════════════════════════════════════════════════
+const NIFTY_TOKEN = '256265'; // NSE:NIFTY 50 instrument token
+let _niftyAutoInterval = null;
+let _niftyCandles = [];
+let _pfAlertShown = false;
+
+// HMA calculation: WMA of (2×WMA(n/2) − WMA(n)), smoothed by WMA(√n)
+function wma(arr, period) {
+  if(arr.length < period) return null;
+  const slice = arr.slice(-period);
+  let num = 0, den = 0;
+  for(let i = 0; i < period; i++) { num += (i+1)*slice[i]; den += (i+1); }
+  return num / den;
+}
+
+function calcHMA(closes, period) {
+  const half = Math.floor(period/2);
+  const sqrtP = Math.round(Math.sqrt(period));
+  const hmaRaw = [];
+  for(let i = period-1; i < closes.length; i++) {
+    const slice = closes.slice(0, i+1);
+    const w1 = wma(slice, half);
+    const w2 = wma(slice, period);
+    if(w1 !== null && w2 !== null) hmaRaw.push(2*w1 - w2);
+  }
+  if(hmaRaw.length < sqrtP) return null;
+  return wma(hmaRaw, sqrtP);
+}
+
+function calcHMASeries(closes, period) {
+  const half = Math.floor(period/2);
+  const sqrtP = Math.round(Math.sqrt(period));
+  const raw = [];
+  for(let i = period-1; i < closes.length; i++) {
+    const sl = closes.slice(0, i+1);
+    const w1 = wma(sl, half), w2 = wma(sl, period);
+    if(w1!==null && w2!==null) raw.push(2*w1 - w2);
+  }
+  const series = [];
+  for(let i = sqrtP-1; i < raw.length; i++) {
+    series.push(wma(raw.slice(0,i+1), sqrtP));
+  }
+  return series;
+}
+
+function calcRSI(closes, period=14) {
+  if(closes.length < period+1) return null;
+  const sl = closes.slice(-(period+1));
+  let gains=0, losses=0;
+  for(let i=1; i<sl.length; i++) {
+    const d = sl[i]-sl[i-1];
+    if(d>0) gains+=d; else losses+=Math.abs(d);
+  }
+  const avgG=gains/period, avgL=losses/period;
+  if(avgL===0) return 100;
+  const rs=avgG/avgL;
+  return Math.round(100 - 100/(1+rs));
+}
+
+async function fetchNiftyCandles(intervalMins=7) {
+  if(!zdLiveMode) return null;
+  const now = new Date();
+  const from = new Date(); from.setHours(9,15,0,0);
+  const fmt = d => d.toISOString().split('T')[0]+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':00';
+  const url = `${ZD_WORKER}/kite/instruments/historical/${NIFTY_TOKEN}/${intervalMins}minute?from=${fmt(from)}&to=${fmt(now)}&continuous=0&oi=0`;
+  try {
+    const res = await fetch(url, {
+      headers:{'X-Kite-Version':'3','Authorization':`token ${zdApiKey}:${zdToken}`}
+    });
+    const j = await res.json();
+    if(j.data && j.data.candles) return j.data.candles;
+  } catch(e) { zdLog('Nifty candle fetch error: '+e.message); }
+  return null;
+}
+
+async function fetchNiftyLTP() {
+  if(!zdLiveMode) return null;
+  try {
+    const res = await fetch(`${ZD_WORKER}/kite/quote/ltp?NSE:NIFTY+50`, {
+      headers:{'X-Kite-Version':'3','Authorization':`token ${zdApiKey}:${zdToken}`}
+    });
+    const j = await res.json();
+    return j.data && j.data['NSE:NIFTY 50'] ? j.data['NSE:NIFTY 50'].last_price : null;
+  } catch(e) { return null; }
+}
+
+async function refreshNiftyDash() {
+  if(!zdLiveMode){toast('Connect Kite first','err');return;}
+  document.getElementById('niftyLastUpdate').textContent = 'Refreshing…';
+  const candles = await fetchNiftyCandles(7);
+  if(!candles || candles.length < 10) {
+    document.getElementById('niftyLastUpdate').textContent = 'No candle data — market may be closed';
+    return;
+  }
+  _niftyCandles = candles;
+  const closes = candles.map(c=>c[4]);
+  const ltp = closes[closes.length-1];
+  const open = candles[0][1];
+  const chgPct = ((ltp-open)/open*100).toFixed(2);
+  const chgSign = chgPct>=0?'+':'';
+
+  // HMA calculations
+  const hma9series = calcHMASeries(closes, 9);
+  const hma10series = calcHMASeries(closes, 10);
+  const hma9 = hma9series.length ? hma9series[hma9series.length-1] : null;
+  const hma9prev = hma9series.length>1 ? hma9series[hma9series.length-2] : null;
+  const hma10 = hma10series.length ? hma10series[hma10series.length-1] : null;
+
+  // RSI on 15-min (use 7-min candles × 2 as approximation)
+  const rsi = calcRSI(closes, 14);
+
+  // HMA slope
+  const hmaSlope = hma9 && hma9prev ? hma9-hma9prev : null;
+  const hmaSlopeDir = hmaSlope===null?'unknown':hmaSlope>0.5?'bullish':hmaSlope<-0.5?'bearish':'flat';
+
+  // HMA cross
+  const hmaCross = (hma9&&hma10) ? (hma9>hma10?'bullish':'bearish') : 'unknown';
+
+  // RSI level
+  const rsiLevel = rsi===null?'unknown':rsi>72?'overbought':rsi>55?'bullish':rsi>45?'neutral':rsi>28?'bearish':'oversold';
+
+  // Fatigue score (0-4)
+  let fatigueScore = 0;
+  if(rsi && rsi>70) fatigueScore++;
+  if(hmaSlopeDir==='bearish') fatigueScore++;
+  if(hmaCross==='bearish') fatigueScore++;
+  if(parseFloat(chgPct)>1.5) fatigueScore++;
+
+  // Verdict
+  let verdictClass, verdictIcon, verdictTitle, verdictSub;
+  if(fatigueScore<=1 && hmaCross==='bullish') {
+    verdictClass='safe'; verdictIcon='✅';
+    verdictTitle='SAFE TO ENTER — Nifty is healthy';
+    verdictSub=`HMA(9) ${hmaSlopeDir} | RSI ${rsi||'—'} | Fatigue: ${fatigueScore}/4 — Consider same-day or next-morning entry`;
+  } else if(fatigueScore>=3 || hmaCross==='bearish') {
+    verdictClass='danger'; verdictIcon='🔴';
+    verdictTitle='AVOID SAME DAY — Nifty showing reversal signals';
+    verdictSub=`HMA cross ${hmaCross} | RSI ${rsi||'—'} | Fatigue: ${fatigueScore}/4 — Wait for next-morning HMA confirmation`;
+  } else {
+    verdictClass='warn'; verdictIcon='⚠️';
+    verdictTitle='CAUTION — Nifty mixed signals';
+    verdictSub=`HMA ${hmaSlopeDir} | RSI ${rsi||'—'} | Fatigue: ${fatigueScore}/4 — High conviction stocks only`;
+  }
+
+  // Update UI
+  document.getElementById('niftyVerdict').style.display='flex';
+  document.getElementById('niftyVerdict').className='nifty-verdict '+verdictClass;
+  document.getElementById('niftyVerdictIcon').textContent=verdictIcon;
+  document.getElementById('niftyVerdictTitle').textContent=verdictTitle;
+  document.getElementById('niftyVerdictSub').textContent=verdictSub;
+
+  document.getElementById('nfCmp').textContent='₹'+ltp.toFixed(1);
+  document.getElementById('nfCmp').className='nv '+(chgPct>=0?'c-bull':'c-bear');
+  document.getElementById('nfChg').textContent=chgSign+chgPct+'%';
+  document.getElementById('nfChg').className='nv '+(chgPct>=0?'c-bull':'c-bear');
+  document.getElementById('nfVsPDH').textContent=chgPct>0?'Above prev open':'Below prev open';
+  document.getElementById('nfRSI').textContent=rsi||'—';
+  document.getElementById('nfRSI').className='nv '+(rsi>70?'c-bear':rsi>55?'c-bull':'c-amb');
+  document.getElementById('nfHMA9').textContent=hmaSlopeDir.toUpperCase();
+  document.getElementById('nfHMA9').className='nv '+(hmaSlopeDir==='bullish'?'c-bull':hmaSlopeDir==='bearish'?'c-bear':'c-dim');
+  document.getElementById('nfHMACross').textContent=hmaCross.toUpperCase();
+  document.getElementById('nfHMACross').className='nv '+(hmaCross==='bullish'?'c-bull':'c-bear');
+  document.getElementById('nfRegime').textContent=currentRegime||'—';
+  document.getElementById('nfCandles').textContent=candles.length+' (7min)';
+
+  const hmaRow = document.getElementById('niftyHMARow');
+  hmaRow.innerHTML=`
+    <span class="hma-pill ${hmaSlopeDir==='bullish'?'hma-bull':hmaSlopeDir==='bearish'?'hma-bear':'hma-flat'}">HMA(9) Slope: ${hmaSlopeDir.toUpperCase()}</span>
+    <span class="hma-pill ${hmaCross==='bullish'?'hma-bull':'hma-bear'}">HMA(9) vs HMA(10): ${hmaCross.toUpperCase()}</span>
+    <span class="hma-pill ${rsiLevel==='overbought'?'hma-bear':rsiLevel==='bullish'?'hma-bull':'hma-flat'}">RSI(14): ${rsi||'—'} — ${rsiLevel.toUpperCase()}</span>
+    <span class="hma-pill ${fatigueScore>=3?'hma-bear':fatigueScore<=1?'hma-bull':'hma-flat'}">Fatigue Score: ${fatigueScore}/4</span>`;
+
+  document.getElementById('niftyHMADetail').innerHTML=`
+    HMA(9) current: <strong>${hma9?hma9.toFixed(2):'—'}</strong> &nbsp;|&nbsp;
+    HMA(10): <strong>${hma10?hma10.toFixed(2):'—'}</strong> &nbsp;|&nbsp;
+    Spread: <strong class="${hmaCross==='bullish'?'c-bull':'c-bear'}">${hma9&&hma10?(hma9-hma10).toFixed(2):'—'}</strong>
+    <br>Interpretation: ${hmaCross==='bullish'?'HMA(9) above HMA(10) — uptrend intact, entries valid':'HMA(9) below HMA(10) — downtrend forming, avoid new longs'}`;
+
+  // Update stock entry tracker
+  updateEntryTracker(verdictClass, fatigueScore);
+
+  const t=new Date();
+  document.getElementById('niftyLastUpdate').textContent=`Updated ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+}
+
+function updateEntryTracker(niftyVerdict, fatigueScore) {
+  const body = document.getElementById('entryTrackerBody');
+  if(!body) return;
+  const buys = allSignals.filter(s=>s.signal&&s.signal.startsWith('B')).sort((a,b)=>b.score-a.score).slice(0,50);
+  if(!buys.length){body.innerHTML='<tr><td colspan="10" class="empty">No buy signals — load data first</td></tr>';return;}
+  body.innerHTML = buys.map((s,i)=>{
+    // Per-stock HMA from its CMP trend (approximation using CMP vs TP/SL midpoint)
+    const cmp=s.cmp, tp=s.tp, sl=s.sl;
+    const midpoint=(tp+sl)/2;
+    const stockMomentum=cmp>midpoint?'bullish':cmp<sl*1.01?'bearish':'flat';
+    // Entry decision combining Nifty + stock
+    let entryBadge, sameDay;
+    if(niftyVerdict==='safe' && stockMomentum==='bullish'){
+      entryBadge='<span class="entry-badge eb-enter">✅ Enter Now</span>'; sameDay='Same Day';
+    } else if(niftyVerdict==='danger'){
+      entryBadge='<span class="entry-badge eb-avoid">🔴 Wait Next AM</span>'; sameDay='Next Morning';
+    } else if(stockMomentum==='bearish'){
+      entryBadge='<span class="entry-badge eb-avoid">⚠ Near SL</span>'; sameDay='Next Morning';
+    } else {
+      entryBadge='<span class="entry-badge eb-wait">⏳ Wait HMA Cross</span>'; sameDay='TBD';
+    }
+    const orderBtn=zdLiveMode?`<button class="ob-buy" onclick="showOrderModal('${s.symbol}','BUY',${cmp},${tp},${sl},1)">▲ BUY</button>`:'—';
+    return`<tr>
+      <td class="c-dim">${i+1}</td>
+      <td><strong>${s.symbol}</strong></td>
+      <td>${sigBadge(s.signal)}</td>
+      <td class="c-bull">${s.score}</td>
+      <td>₹${cmp.toFixed(1)}</td>
+      <td class="c-bull">₹${tp.toFixed(1)}</td>
+      <td class="c-bear">₹${sl.toFixed(1)}</td>
+      <td>${entryBadge}</td>
+      <td style="font-family:var(--mono);font-size:9px;color:var(--text2)">${sameDay}</td>
+      <td>${orderBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleNiftyAuto(){
+  const btn=document.getElementById('niftyAutoBtn');
+  if(_niftyAutoInterval){
+    clearInterval(_niftyAutoInterval);_niftyAutoInterval=null;
+    btn.innerHTML='<i class="fas fa-play"></i> Start 15s Auto';
+    toast('Nifty auto-refresh stopped','ok');
+  } else {
+    refreshNiftyDash();
+    _niftyAutoInterval=setInterval(refreshNiftyDash,15000);
+    btn.innerHTML='<i class="fas fa-stop"></i> Stop Auto';
+    toast('Nifty refreshing every 15s','ok');
+  }
+}
+
+function renderNiftyPage(){
+  updateEntryTracker('warn',0);
+}
+
+// 3:00 PM PORTFOLIO ALERT
+function check3PMAlert(){
+  if(!_pfAlertShown && allSignals.length>0){
+    const now=new Date();
+    if(now.getHours()===15 && now.getMinutes()>=0 && now.getMinutes()<15){
+      _pfAlertShown=true;
+      const box=document.createElement('div');
+      box.className='pf-alert-box';
+      box.id='pfAlertBox';
+      box.innerHTML=`<div>📊 3:00 PM — Time to review signals!</div>
+        <div style="font-size:9px;font-weight:400">Check Nifty health before building portfolio</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="switchPage('nifty');document.getElementById('pfAlertBox').remove()">View Nifty Radar</button>
+          <button onclick="createDailyPortfolios();document.getElementById('pfAlertBox').remove()">Build Portfolio</button>
+          <button onclick="document.getElementById('pfAlertBox').remove()" style="background:rgba(0,0,0,.3);color:#fff">Dismiss</button>
+        </div>`;
+      document.body.appendChild(box);
+      toast('📊 3:00 PM — Portfolio build time!','ok');
+    }
+  }
+  // Reset flag after 3:15 PM
+  const now=new Date();
+  if(now.getHours()===15&&now.getMinutes()>=15) _pfAlertShown=false;
 }
 
 // ═══════════════════════════════════════════════════════════
