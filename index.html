@@ -3832,7 +3832,9 @@ async function refreshNiftyDash() {
 function updateEntryTracker(niftyVerdict, tiredScore) {
   const body = document.getElementById('entryTrackerBody');
   if(!body) return;
-  const buys = allSignals.filter(s=>s.signal&&s.signal.startsWith('B')).sort((a,b)=>b.score-a.score).slice(0,50);
+  // Use SAME source as Top 50 Buy table — selectTop25 applies regime threshold,
+  // signal type filter, sector cap and 250d lookback — exactly like Signal Scanner
+  const buys = selectTop25(allSignals, 'buy');
   if(!buys.length){body.innerHTML='<tr><td colspan="10" class="empty">No buy signals — load data first</td></tr>';return;}
 
   body.innerHTML = buys.map((s,i)=>{
