@@ -2397,7 +2397,7 @@ const TRADING_CAPITAL=500000;let _omDirection='BUY';
 function showOrderModal(symbol,direction,cmp,tp,sl,qty){
   if(!zdLiveMode){toast('Connect Zerodha Kite first','err');return}
   _omDirection=direction;window._omCmp=cmp;
-  const defaultInvest=33000,autoQty=cmp>0?Math.max(1,Math.floor(defaultInvest/cmp)):(qty||1);
+  const defaultInvest=overallRegime==='full'?33000:overallRegime==='bear'?23000:30000,autoQty=cmp>0?Math.max(1,Math.floor(defaultInvest/cmp)):(qty||1);
   const kd=kellyData[symbol],kellyNote=kd&&kd.kelly_pct>0?`Kelly ${kd.kelly_pct}% of ₹5L = ₹${Math.round(TRADING_CAPITAL*kd.kelly_pct/100).toLocaleString('en-IN')}`:'No Kelly data yet';
   document.getElementById('omSymbol').textContent=symbol;document.getElementById('omCmp').textContent='₹'+cmp.toFixed(2);
   document.getElementById('omTp').textContent=tp?'₹'+tp.toFixed(2):'—';document.getElementById('omSl').textContent=sl?'₹'+sl.toFixed(2):'—';
@@ -2419,7 +2419,7 @@ function updateOmTotal(){
   const el=document.getElementById('omTotal');
   if(el)el.textContent=total>0?`₹${total.toLocaleString('en-IN',{maximumFractionDigits:0})}${ot==='MARKET'?' (est.)':''}`:'—';
   const gttEl=document.getElementById('omGttInfo');
-  if(gttEl){const isBuy=window._omDirection==='BUY';if(ot==='LIMIT'&&price>0){const tp=isBuy?(price*1.0185):(price*0.9815),sl=isBuy?(price*0.963):(price*1.037);gttEl.innerHTML=`GTT1: TP ₹<strong>${tp.toFixed(2)}</strong> (+1.85%) | SL ₹<strong>${sl.toFixed(2)}</strong> (-3.7%) &nbsp;|&nbsp; GTT2: Gap-DN SL ₹<strong>${(isBuy?price*0.92:price*1.08).toFixed(2)}</strong> (-8%)`;document.getElementById('omGttPreview').style.display='block'}else{gttEl.textContent='GTT only on LIMIT orders';document.getElementById('omGttPreview').style.display=ot==='LIMIT'?'block':'none'}}
+  if(gttEl){const isBuy=window._omDirection==='BUY';if(ot==='LIMIT'&&price>0){const tp=isBuy?(price*1.0185):(price*0.9815),sl=isBuy?(price*0.963):(price*1.037);gttEl.innerHTML=`GTT1: TP ₹<strong>${tp.toFixed(2)}</strong> (+1.85%) | SL ₹<strong>${sl.toFixed(2)}</strong> (-3.7%)${isBuy?` &nbsp;|&nbsp; GTT2: Gap-DN SL ₹<strong>${(price*0.92).toFixed(2)}</strong> (-8%)`:''}`;document.getElementById('omGttPreview').style.display='block'}else{gttEl.textContent='GTT only on LIMIT orders';document.getElementById('omGttPreview').style.display=ot==='LIMIT'?'block':'none'}}
 }
 function calcQtyFromInvestment(){const invest=parseFloat(document.getElementById('omInvest').value)||0,cmp=window._omCmp||0;if(cmp>0&&invest>0){const qty=Math.max(1,Math.floor(invest/cmp));document.getElementById('omQty').value=qty;const actual=(qty*cmp),note=document.getElementById('omInvestNote');if(note)note.textContent=`${qty} shares × ₹${cmp.toFixed(2)} = ₹${actual.toLocaleString('en-IN',{maximumFractionDigits:0})} (leftover ₹${Math.round(invest-actual).toLocaleString('en-IN')})`}updateOmTotal()}
 function adjustInvestment(delta){const inp=document.getElementById('omInvest'),cur=parseFloat(inp.value)||33000;inp.value=Math.max(1000,cur+delta);calcQtyFromInvestment()}
@@ -2450,7 +2450,7 @@ async function confirmPlaceOrder(){
         const entryPx=price,isBuy=_omDirection==='BUY';
         const tpPx=isBuy?parseFloat((entryPx*1.0185).toFixed(2)):parseFloat((entryPx*0.9815).toFixed(2));
         const slPx=isBuy?parseFloat((entryPx*0.963).toFixed(2)):parseFloat((entryPx*1.037).toFixed(2));
-        const gdSlPx=isBuy?parseFloat((entryPx*0.92).toFixed(2)):parseFloat((entryPx*1.08).toFixed(2));
+        const gdSlPx=isBuy?parseFloat((entryPx*0.92).toFixed(2)):null; // gap-down -8% only for BUY positions
         setTimeout(()=>placeGTT(sym,qty,entryPx,tpPx,slPx,isBuy?'SELL':'BUY',product,el,logId,gdSlPx),1500);
       }
       setTimeout(()=>closeOrderModal(),10000);
